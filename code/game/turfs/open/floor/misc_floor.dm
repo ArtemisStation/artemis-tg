@@ -17,12 +17,17 @@
 /turf/open/floor/circuit/Initialize(mapload)
 	SSmapping.nuke_tiles += src
 	RegisterSignal(loc, COMSIG_AREA_POWER_CHANGE, PROC_REF(handle_powerchange))
-	handle_powerchange(loc)
+	var/area/cur_area = get_area(src)
+	if (!isnull(cur_area))
+		handle_powerchange(cur_area, TRUE)
 	. = ..()
 
 /turf/open/floor/circuit/Destroy()
 	SSmapping.nuke_tiles -= src
 	UnregisterSignal(loc, COMSIG_AREA_POWER_CHANGE)
+	var/area/cur_area = get_area(src)
+	if(on && !isnull(cur_area))
+		cur_area.removeStaticPower(CIRCUIT_FLOOR_POWERUSE, AREA_USAGE_STATIC_LIGHT)
 	return ..()
 
 /turf/open/floor/circuit/update_appearance(updates)
@@ -47,7 +52,7 @@
 	handle_powerchange(new_area)
 
 /// Enables/disables our lighting based off our source area
-/turf/open/floor/circuit/proc/handle_powerchange(area/source)
+/turf/open/floor/circuit/proc/handle_powerchange(area/source, mapload = FALSE)
 	SIGNAL_HANDLER
 	var/old_on = on
 	if(always_off)
@@ -59,7 +64,7 @@
 
 	if(on)
 		source.addStaticPower(CIRCUIT_FLOOR_POWERUSE, AREA_USAGE_STATIC_LIGHT)
-	else
+	else if (!mapload)
 		source.removeStaticPower(CIRCUIT_FLOOR_POWERUSE, AREA_USAGE_STATIC_LIGHT)
 	update_appearance()
 
@@ -155,6 +160,14 @@
 /turf/open/floor/noslip/MakeSlippery(wet_setting, min_wet_time, wet_time_to_add, max_wet_time, permanent)
 	return
 
+/turf/open/floor/noslip/tram/Initialize(mapload)
+	. = ..()
+	var/current_holiday_color = request_station_colors(src, PATTERN_VERTICAL_STRIPE) || request_holiday_colors(src, PATTERN_VERTICAL_STRIPE)
+	if(current_holiday_color)
+		color = current_holiday_color
+	else
+		color = "#EFB341"
+
 /turf/open/floor/oldshuttle
 	icon = 'icons/turf/shuttleold.dmi'
 	icon_state = "floor"
@@ -211,7 +224,7 @@
 	icon_state = "plastic"
 	thermal_conductivity = 0.1
 	heat_capacity = 900
-	custom_materials = list(/datum/material/plastic=500)
+	custom_materials = list(/datum/material/plastic=SMALL_MATERIAL_AMOUNT*5)
 	floor_tile = /obj/item/stack/tile/plastic
 
 /turf/open/floor/plastic/broken_states()
@@ -245,6 +258,14 @@
 	AddElement(/datum/element/rust)
 	color = null
 
+/turf/open/floor/plating/heretic_rust
+	color = COLOR_GREEN_GRAY
+
+/turf/open/floor/plating/heretic_rust/Initialize(mapload)
+	. = ..()
+	AddElement(/datum/element/rust/heretic)
+	color = null
+
 /turf/open/floor/plating/plasma
 	initial_gas_mix = ATMOS_TANK_PLASMA
 
@@ -255,6 +276,17 @@
 	AddElement(/datum/element/rust)
 
 /turf/open/floor/stone
+	name = "stone brick floor"
+	desc = "Odd, really, how it looks exactly like the iron walls yet is stone instead of iron. Now, if that's really more of a complaint about\
+		the ironness of walls or the stoneness of the floors, that's really up to you. But have you really ever seen iron that dull? I mean, it\
+		makes sense for the station to have dull metal walls but we're talking how a rudimentary iron wall would be. Medieval ages didn't even\
+		use iron walls, iron walls are actually not even something that exists because iron is an expensive and not-so-great thing to build walls\
+		out of. It only makes sense in the context of space because you're trying to keep a freezing vacuum out. Is anyone following me on this? \
+		The idea of a \"rudimentary\" iron wall makes no sense at all! Is anything i'm even saying here true? Someone's gotta fact check this!"
+	icon_state = "stone_floor"
+
+/turf/open/floor/stone/icemoon
+	initial_gas_mix = ICEMOON_DEFAULT_ATMOS
 	name = "stone brick floor"
 	desc = "Odd, really, how it looks exactly like the iron walls yet is stone instead of iron. Now, if that's really more of a complaint about\
 		the ironness of walls or the stoneness of the floors, that's really up to you. But have you really ever seen iron that dull? I mean, it\
@@ -306,7 +338,7 @@
 
 /turf/open/floor/material/meat/Initialize(mapload)
 	. = ..()
-	set_custom_materials(list(GET_MATERIAL_REF(/datum/material/meat) = MINERAL_MATERIAL_AMOUNT))
+	set_custom_materials(list(GET_MATERIAL_REF(/datum/material/meat) = SHEET_MATERIAL_AMOUNT))
 
 /turf/open/floor/material/meat/airless
 	initial_gas_mix = AIRLESS_ATMOS
@@ -319,3 +351,18 @@
 
 /turf/open/floor/iron/tgmcemblem/center
 	icon_state = "tgmc_center"
+
+/turf/open/floor/asphalt
+	name = "asphalt"
+	desc = "Melted down oil can, in some cases, be used to pave road surfaces."
+	icon_state = "asphalt"
+
+/turf/open/floor/asphalt/outdoors
+	planetary_atmos = TRUE
+
+/turf/open/floor/asphalt/lavaland
+	initial_gas_mix = LAVALAND_DEFAULT_ATMOS
+	baseturfs = /turf/open/misc/asteroid/basalt
+
+/turf/open/floor/asphalt/lavaland/outdoors
+	planetary_atmos = TRUE

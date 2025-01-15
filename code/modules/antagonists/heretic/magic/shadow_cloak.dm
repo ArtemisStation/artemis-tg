@@ -7,7 +7,7 @@
 	overlay_icon_state = "bg_heretic_border"
 	button_icon = 'icons/mob/actions/actions_minor_antag.dmi'
 	button_icon_state = "ninja_cloak"
-	sound = 'sound/effects/curse2.ogg'
+	sound = 'sound/effects/curse/curse2.ogg'
 
 	school = SCHOOL_FORBIDDEN
 	cooldown_time = 6 SECONDS
@@ -36,12 +36,12 @@
 /datum/action/cooldown/spell/shadow_cloak/before_cast(mob/living/cast_on)
 	. = ..()
 	sound = pick(
-		'sound/effects/curse1.ogg',
-		'sound/effects/curse2.ogg',
-		'sound/effects/curse3.ogg',
-		'sound/effects/curse4.ogg',
-		'sound/effects/curse5.ogg',
-		'sound/effects/curse6.ogg',
+		'sound/effects/curse/curse1.ogg',
+		'sound/effects/curse/curse2.ogg',
+		'sound/effects/curse/curse3.ogg',
+		'sound/effects/curse/curse4.ogg',
+		'sound/effects/curse/curse5.ogg',
+		'sound/effects/curse/curse6.ogg',
 	)
 	// We handle the CD on our own
 	return . | SPELL_NO_IMMEDIATE_COOLDOWN
@@ -66,24 +66,24 @@
 	StartCooldown(uncloak_timer / 3)
 
 /datum/action/cooldown/spell/shadow_cloak/proc/cloak_mob(mob/living/cast_on)
-	playsound(cast_on, 'sound/chemistry/ahaha.ogg', 50, TRUE, -1, extrarange = SILENCED_SOUND_EXTRARANGE, frequency = 0.5)
+	playsound(cast_on, 'sound/effects/chemistry/ahaha.ogg', 50, TRUE, -1, extrarange = SILENCED_SOUND_EXTRARANGE, frequency = 0.5)
 	cast_on.visible_message(
 		span_warning("[cast_on] disappears into the shadows!"),
 		span_notice("You disappear into the shadows, becoming unidentifiable."),
 	)
 
 	active_cloak = cast_on.apply_status_effect(/datum/status_effect/shadow_cloak)
-	RegisterSignal(active_cloak, COMSIG_PARENT_QDELETING, PROC_REF(on_early_cloak_loss))
+	RegisterSignal(active_cloak, COMSIG_QDELETING, PROC_REF(on_early_cloak_loss))
 	RegisterSignal(cast_on, SIGNAL_REMOVETRAIT(TRAIT_ALLOW_HERETIC_CASTING), PROC_REF(on_focus_lost))
 
 /datum/action/cooldown/spell/shadow_cloak/proc/uncloak_mob(mob/living/cast_on, show_message = TRUE)
 	if(!QDELETED(active_cloak))
-		UnregisterSignal(active_cloak, COMSIG_PARENT_QDELETING)
+		UnregisterSignal(active_cloak, COMSIG_QDELETING)
 		qdel(active_cloak)
 	active_cloak = null
 
 	UnregisterSignal(cast_on, SIGNAL_REMOVETRAIT(TRAIT_ALLOW_HERETIC_CASTING))
-	playsound(cast_on, 'sound/effects/curseattack.ogg', 50)
+	playsound(cast_on, 'sound/effects/curse/curseattack.ogg', 50)
 	if(show_message)
 		cast_on.visible_message(
 			span_warning("[cast_on] appears from the shadows!"),
@@ -94,7 +94,7 @@
 	deltimer(uncloak_timer)
 	uncloak_timer = null
 
-/// Signal proc for [COMSIG_PARENT_QDELETING], if our cloak is deleted early, impart negative effects
+/// Signal proc for [COMSIG_QDELETING], if our cloak is deleted early, impart negative effects
 /datum/action/cooldown/spell/shadow_cloak/proc/on_early_cloak_loss(datum/status_effect/source)
 	SIGNAL_HANDLER
 
@@ -126,7 +126,7 @@
 /datum/status_effect/shadow_cloak
 	id = "shadow_cloak"
 	alert_type = null
-	tick_interval = -1
+	tick_interval = STATUS_EFFECT_NO_TICK
 	/// How much damage we've been hit with
 	var/damage_sustained = 0
 	/// How much damage we can be hit with before it starts rolling reveal chances
@@ -193,7 +193,7 @@
 		qdel(src)
 
 /// Signal proc for [COMSIG_MOB_APPLY_DAMAGE], being damaged past a threshold will roll a chance to stop the effect
-/datum/status_effect/shadow_cloak/proc/on_damaged(datum/source, damage, damagetype)
+/datum/status_effect/shadow_cloak/proc/on_damaged(datum/source, damage, damagetype, ...)
 	SIGNAL_HANDLER
 
 	// Stam damage is generally bursty, so we'll half it

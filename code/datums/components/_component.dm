@@ -4,7 +4,7 @@
  * The component datum
  *
  * A component should be a single standalone unit
- * of functionality, that works by receiving signals from it's parent
+ * of functionality, that works by receiving signals from its parent
  * object to provide some single functionality (i.e a slippery component)
  * that makes the object it's attached to cause people to slip over.
  * Useful when you want shared behaviour independent of type inheritance
@@ -16,15 +16,6 @@
 	  * See [COMPONENT_DUPE_*][COMPONENT_DUPE_ALLOWED] definitions for available options
 	  */
 	var/dupe_mode = COMPONENT_DUPE_HIGHLANDER
-
-	/**
-	  * The type to check for duplication
-	  *
-	  * `null` means exact match on `type` (default)
-	  *
-	  * Any other type means that and all subtypes
-	  */
-	var/dupe_type
 
 	/// The datum this components belongs to
 	var/datum/parent
@@ -57,7 +48,7 @@
 		qdel(src, TRUE, TRUE)
 		return
 
-	_JoinParent(parent)
+	_JoinParent()
 
 /**
  * Called during component creation with the same arguments as in new excluding parent.
@@ -72,15 +63,13 @@
  *
  * Arguments:
  * * force - makes it not check for and remove the component from the parent
- * * silent - deletes the component without sending a [COMSIG_COMPONENT_REMOVING] signal
  */
-/datum/component/Destroy(force=FALSE, silent=FALSE)
+/datum/component/Destroy(force = FALSE)
 	if(!parent)
 		return ..()
 	if(!force)
 		_RemoveFromParent()
-	if(!silent)
-		SEND_SIGNAL(parent, COMSIG_COMPONENT_REMOVING, src)
+	SEND_SIGNAL(parent, COMSIG_COMPONENT_REMOVING, src)
 	parent = null
 	return ..()
 
@@ -90,9 +79,9 @@
 /datum/component/proc/_JoinParent()
 	var/datum/P = parent
 	//lazy init the parent's dc list
-	var/list/dc = P.datum_components
+	var/list/dc = P._datum_components
 	if(!dc)
-		P.datum_components = dc = list()
+		P._datum_components = dc = list()
 
 	//set up the typecache
 	var/our_type = type
@@ -127,7 +116,7 @@
  */
 /datum/component/proc/_RemoveFromParent()
 	var/datum/parent = src.parent
-	var/list/parents_components = parent.datum_components
+	var/list/parents_components = parent._datum_components
 	for(var/I in _GetInverseTypeList())
 		var/list/components_of_type = parents_components[I]
 
@@ -143,7 +132,7 @@
 			parents_components -= I
 
 	if(!parents_components.len)
-		parent.datum_components = null
+		parent._datum_components = null
 
 	UnregisterFromParent()
 
@@ -169,12 +158,13 @@
 	return
 
 /**
- * Called when the component has a new source registered
+ * Called when the component has a new source registered.
+ * Return COMPONENT_INCOMPATIBLE to signal that the source is incompatible and should not be added
  */
-/datum/component/proc/on_source_add(source)
+/datum/component/proc/on_source_add(source, ...)
 	SHOULD_CALL_PARENT(TRUE)
 	if(dupe_mode != COMPONENT_DUPE_SOURCES)
-		CRASH("Component '[type]' does not use sources but has been given a source")
+		return COMPONENT_INCOMPATIBLE
 	LAZYOR(sources, source)
 
 /**
@@ -188,109 +178,6 @@
 	LAZYREMOVE(sources, source)
 	if(!LAZYLEN(sources))
 		qdel(src)
-
-/**
- * Register to listen for a signal from the passed in target
- *
- * This sets up a listening relationship such that when the target object emits a signal
- * the source datum this proc is called upon, will receive a callback to the given proctype
- * Use PROC_REF(procname), TYPE_PROC_REF(type,procname) or GLOBAL_PROC_REF(procname) macros to validate the passed in proc at compile time.
- * PROC_REF for procs defined on current type or it's ancestors, TYPE_PROC_REF for procs defined on unrelated type and GLOBAL_PROC_REF for global procs.
- * Return values from procs registered must be a bitfield
- *
- * Arguments:
- * * datum/target The target to listen for signals from
- * * signal_type A signal name
- * * proctype The proc to call back when the signal is emitted
- * * override If a previous registration exists you must explicitly set this
- */
-/datum/proc/RegisterSignal(datum/target, signal_type, proctype, override = FALSE)
-	if(QDELETED(src) || QDELETED(target))
-		return
-
-	if (islist(signal_type))
-		var/static/list/known_failures = list()
-		var/list/signal_type_list = signal_type
-		var/message = "([target.type]) is registering [signal_type_list.Join(", ")] as a list, the older method. Change it to RegisterSignals."
-
-		if (!(message in known_failures))
-			known_failures[message] = TRUE
-			stack_trace("[target] [message]")
-
-		RegisterSignals(target, signal_type, proctype, override)
-		return
-
-	var/list/procs = (signal_procs ||= list())
-	var/list/target_procs = (procs[target] ||= list())
-	var/list/lookup = (target.comp_lookup ||= list())
-
-	if(!override && target_procs[signal_type])
-		var/override_message = "[signal_type] overridden. Use override = TRUE to suppress this warning.\nTarget: [target] ([target.type]) Proc: [proctype]"
-		log_signal(override_message)
-		stack_trace(override_message)
-
-	target_procs[signal_type] = proctype
-	var/list/looked_up = lookup[signal_type]
-
-	if(isnull(looked_up)) // Nothing has registered here yet
-		lookup[signal_type] = src
-	else if(looked_up == src) // We already registered here
-		return
-	else if(!length(looked_up)) // One other thing registered here
-		lookup[signal_type] = list((looked_up) = TRUE, (src) = TRUE)
-	else // Many other things have registered here
-		looked_up[src] = TRUE
-
-/// Registers multiple signals to the same proc.
-/datum/proc/RegisterSignals(datum/target, list/signal_types, proctype, override = FALSE)
-	for (var/signal_type in signal_types)
-		RegisterSignal(target, signal_type, proctype, override)
-
-/**
- * Stop listening to a given signal from target
- *
- * Breaks the relationship between target and source datum, removing the callback when the signal fires
- *
- * Doesn't care if a registration exists or not
- *
- * Arguments:
- * * datum/target Datum to stop listening to signals from
- * * sig_typeor_types Signal string key or list of signal keys to stop listening to specifically
- */
-/datum/proc/UnregisterSignal(datum/target, sig_type_or_types)
-	var/list/lookup = target.comp_lookup
-	if(!signal_procs || !signal_procs[target] || !lookup)
-		return
-	if(!islist(sig_type_or_types))
-		sig_type_or_types = list(sig_type_or_types)
-	for(var/sig in sig_type_or_types)
-		if(!signal_procs[target][sig])
-			if(!istext(sig))
-				stack_trace("We're unregistering with something that isn't a valid signal \[[sig]\], you fucked up")
-			continue
-		switch(length(lookup[sig]))
-			if(2)
-				lookup[sig] = (lookup[sig]-src)[1]
-			if(1)
-				stack_trace("[target] ([target.type]) somehow has single length list inside comp_lookup")
-				if(src in lookup[sig])
-					lookup -= sig
-					if(!length(lookup))
-						target.comp_lookup = null
-						break
-			if(0)
-				if(lookup[sig] != src)
-					continue
-				lookup -= sig
-				if(!length(lookup))
-					target.comp_lookup = null
-					break
-			else
-				lookup[sig] -= src
-
-	signal_procs[target] -= sig_type_or_types
-	if(!signal_procs[target].len)
-		signal_procs -= target
 
 /**
  * Called on a component when a component of the same type was added to the same parent
@@ -321,7 +208,7 @@
  *
  * Use this to do any special cleanup you might need to do before being deregged from an object
  */
-/datum/component/proc/PreTransfer()
+/datum/component/proc/PreTransfer(datum/new_parent)
 	return
 
 /**
@@ -331,7 +218,7 @@
  *
  * Do not call `qdel(src)` from this function, `return COMPONENT_INCOMPATIBLE` instead
  */
-/datum/component/proc/PostTransfer()
+/datum/component/proc/PostTransfer(datum/new_parent)
 	return COMPONENT_INCOMPATIBLE //Do not support transfer by default as you must properly support it
 
 /**
@@ -339,34 +226,12 @@
  */
 /datum/component/proc/_GetInverseTypeList(our_type = type)
 	//we can do this one simple trick
+	. = list(our_type)
 	var/current_type = parent_type
-	. = list(our_type, current_type)
 	//and since most components are root level + 1, this won't even have to run
 	while (current_type != /datum/component)
-		current_type = type2parent(current_type)
 		. += current_type
-
-/**
- * Internal proc to handle most all of the signaling procedure
- *
- * Will runtime if used on datums with an empty component list
- *
- * Use the [SEND_SIGNAL] define instead
- */
-/datum/proc/_SendSignal(sigtype, list/arguments)
-	var/target = comp_lookup[sigtype]
-	if(!length(target))
-		var/datum/listening_datum = target
-		return NONE | call(listening_datum, listening_datum.signal_procs[src][sigtype])(arglist(arguments))
-	. = NONE
-	// This exists so that even if one of the signal receivers unregisters the signal,
-	// all the objects that are receiving the signal get the signal this final time.
-	// AKA: No you can't cancel the signal reception of another object by doing an unregister in the same signal.
-	var/list/queued_calls = list()
-	for(var/datum/listening_datum as anything in target)
-		queued_calls[listening_datum] = listening_datum.signal_procs[src][sigtype]
-	for(var/datum/listening_datum as anything in queued_calls)
-		. |= call(listening_datum, queued_calls[listening_datum])(arglist(arguments))
+		current_type = type2parent(current_type)
 
 // The type arg is casted so initial works, you shouldn't be passing a real instance into this
 /**
@@ -381,7 +246,7 @@
 	RETURN_TYPE(c_type)
 	if(initial(c_type.dupe_mode) == COMPONENT_DUPE_ALLOWED || initial(c_type.dupe_mode) == COMPONENT_DUPE_SELECTIVE)
 		stack_trace("GetComponent was called to get a component of which multiple copies could be on an object. This can easily break and should be changed. Type: \[[c_type]\]")
-	var/list/dc = datum_components
+	var/list/dc = _datum_components
 	if(!dc)
 		return null
 	. = dc[c_type]
@@ -399,17 +264,17 @@
  */
 /datum/proc/GetExactComponent(datum/component/c_type)
 	RETURN_TYPE(c_type)
-	if(initial(c_type.dupe_mode) == COMPONENT_DUPE_ALLOWED || initial(c_type.dupe_mode) == COMPONENT_DUPE_SELECTIVE)
+	var/initial_type_mode = initial(c_type.dupe_mode)
+	if(initial_type_mode == COMPONENT_DUPE_ALLOWED || initial_type_mode == COMPONENT_DUPE_SELECTIVE)
 		stack_trace("GetComponent was called to get a component of which multiple copies could be on an object. This can easily break and should be changed. Type: \[[c_type]\]")
-	var/list/dc = datum_components
-	if(!dc)
+	var/list/all_components = _datum_components
+	if(!all_components)
 		return null
-	var/datum/component/C = dc[c_type]
-	if(C)
-		if(length(C))
-			C = C[1]
-		if(C.type == c_type)
-			return C
+	var/datum/component/potential_component
+	if(length(all_components))
+		potential_component = all_components[c_type]
+	if(potential_component?.type == c_type)
+		return potential_component
 	return null
 
 /**
@@ -419,7 +284,7 @@
  * * c_type The component type path
  */
 /datum/proc/GetComponents(c_type)
-	var/list/components = datum_components?[c_type]
+	var/list/components = _datum_components?[c_type]
 	if(!components)
 		return list()
 	return islist(components) ? components : list(components)
@@ -442,8 +307,18 @@
 	if(QDELING(src))
 		CRASH("Attempted to add a new component of type \[[component_type]\] to a qdeleting parent of type \[[type]\]!")
 
+	var/datum/component/new_component
+
+	if(!ispath(component_type, /datum/component))
+		if(!istype(component_type, /datum/component))
+			CRASH("Attempted to instantiate \[[component_type]\] as a component added to parent of type \[[type]\]!")
+		else
+			new_component = component_type
+			component_type = new_component.type
+	else if(component_type == /datum/component)
+		CRASH("[component_type] attempted instantiation!")
+
 	var/dupe_mode = initial(component_type.dupe_mode)
-	var/dupe_type = initial(component_type.dupe_type)
 	var/uses_sources = (dupe_mode == COMPONENT_DUPE_SOURCES)
 	if(uses_sources && !source)
 		CRASH("Attempted to add a sourced component of type '[component_type]' to '[type]' without a source!")
@@ -451,21 +326,10 @@
 		CRASH("Attempted to add a normal component of type '[component_type]' to '[type]' with a source!")
 
 	var/datum/component/old_component
-	var/datum/component/new_component
-
-	if(ispath(component_type))
-		if(component_type == /datum/component)
-			CRASH("[component_type] attempted instantiation!")
-	else
-		new_component = component_type
-		component_type = new_component.type
 
 	raw_args[1] = src
-	if(dupe_mode != COMPONENT_DUPE_ALLOWED && dupe_mode != COMPONENT_DUPE_SELECTIVE)
-		if(!dupe_type)
-			old_component = GetExactComponent(component_type)
-		else
-			old_component = GetComponent(dupe_type)
+	if(dupe_mode != COMPONENT_DUPE_ALLOWED && dupe_mode != COMPONENT_DUPE_SELECTIVE && dupe_mode != COMPONENT_DUPE_SOURCES)
+		old_component = GetComponent(component_type)
 
 		if(old_component)
 			switch(dupe_mode)
@@ -494,10 +358,14 @@
 				if(COMPONENT_DUPE_SOURCES)
 					if(source in old_component.sources)
 						return old_component // source already registered, no work to do
-					old_component.on_source_add(source)
+
+					if(old_component.on_source_add(arglist(list(source) + raw_args.Copy(2))) == COMPONENT_INCOMPATIBLE)
+						stack_trace("incompatible source added to a [old_component.type]. Args: [json_encode(raw_args)]")
+						return null
 
 		else if(!new_component)
 			new_component = new component_type(raw_args) // There's a valid dupe mode but there's no old component, act like normal
+
 	else if(dupe_mode == COMPONENT_DUPE_SELECTIVE)
 		var/list/arguments = raw_args.Copy()
 		arguments[1] = new_component
@@ -509,12 +377,17 @@
 				break
 		if(!new_component && make_new_component)
 			new_component = new component_type(raw_args)
+
+	else if(dupe_mode == COMPONENT_DUPE_SOURCES)
+		new_component = new component_type(raw_args)
+		if(new_component.on_source_add(arglist(list(source) + raw_args.Copy(2))) == COMPONENT_INCOMPATIBLE)
+			stack_trace("incompatible source added to a [new_component.type]. Args: [json_encode(raw_args)]")
+			return null
+
 	else if(!new_component)
 		new_component = new component_type(raw_args) // Dupes are allowed, act like normal
 
 	if(!old_component && !QDELETED(new_component)) // Nothing related to duplicate components happened and the new component is healthy
-		if(uses_sources) // make sure they have the source added if they use sources
-			new_component.on_source_add(source)
 		SEND_SIGNAL(src, COMSIG_COMPONENT_ADDED, new_component)
 		return new_component
 
@@ -527,7 +400,7 @@
 	if(ispath(component_type))
 		component_type = GetExactComponent(component_type)
 	if(!component_type)
-		CRASH("Attempted to remove a null or non-existent component '[component_type]' from '[type]'")
+		return
 	component_type.on_source_remove(source)
 
 /**
@@ -548,11 +421,11 @@
  * Removes the component from parent, ends up with a null parent
  * Used as a helper proc by the component transfer proc, does not clean up the component like Destroy does
  */
-/datum/component/proc/ClearFromParent()
+/datum/component/proc/ClearFromParent(datum/new_parent)
 	if(!parent)
 		return
 	var/datum/old_parent = parent
-	PreTransfer()
+	PreTransfer(new_parent)
 	_RemoveFromParent()
 	parent = null
 	SEND_SIGNAL(old_parent, COMSIG_COMPONENT_REMOVING, src)
@@ -569,16 +442,17 @@
 	if(!target || target.parent == src)
 		return
 	if(target.parent)
-		target.ClearFromParent()
-	target.parent = src
-	var/result = target.PostTransfer()
+		target.ClearFromParent(src)
+	var/result = target.PostTransfer(src)
 	switch(result)
 		if(COMPONENT_INCOMPATIBLE)
 			var/c_type = target.type
 			qdel(target)
 			CRASH("Incompatible [c_type] transfer attempt to a [type]!")
 
-	if(target == AddComponent(target))
+	AddComponent(target)
+	if(!QDELETED(target))
+		target.parent = src
 		target._JoinParent()
 
 /**
@@ -590,18 +464,19 @@
  * * /datum/target the target to move the components to
  */
 /datum/proc/TransferComponents(datum/target)
-	var/list/dc = datum_components
+	var/list/dc = _datum_components
 	if(!dc)
 		return
-	var/comps = dc[/datum/component]
-	if(islist(comps))
-		for(var/datum/component/I in comps)
-			if(I.can_transfer)
-				target.TakeComponent(I)
-	else
-		var/datum/component/C = comps
-		if(C.can_transfer)
-			target.TakeComponent(comps)
+	for(var/component_key in dc)
+		var/component_or_list = dc[component_key]
+		if(islist(component_or_list))
+			for(var/datum/component/component in component_or_list)
+				if(component.can_transfer)
+					target.TakeComponent(component)
+		else
+			var/datum/component/component = component_or_list
+			if(!QDELETED(component) && component.can_transfer)
+				target.TakeComponent(component)
 
 /**
  * Return the object that is the host of any UI's that this component has

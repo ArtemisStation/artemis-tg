@@ -26,9 +26,9 @@
 	assignment = "Charlie Station Engineer"
 
 /// Trim for the oldstation ruin/Charlie station to access APCs and other equipment
-/datum/id_trim/away/old/apc
-	access = list(ACCESS_ENGINEERING, ACCESS_ENGINE_EQUIP)
-	assignment = "Engineering Equipment Access"
+/datum/id_trim/away/old/equipment
+	access = list(ACCESS_AWAY_GENERAL, ACCESS_AWAY_ENGINEERING, ACCESS_ENGINEERING, ACCESS_ENGINE_EQUIP)
+	assignment = "Engine Equipment Access"
 
 /// Trim for the oldstation ruin/Charlie station to access robots, and downloading of paper publishing software for experiments
 /datum/id_trim/away/old/robo
@@ -72,6 +72,7 @@
 /datum/id_trim/centcom/corpse/commander
 	assignment = "Commander"
 	access = list(ACCESS_CENT_CAPTAIN, ACCESS_CENT_GENERAL, ACCESS_CENT_SPECOPS, ACCESS_CENT_MEDICAL, ACCESS_CENT_STORAGE)
+	big_pointer = TRUE
 
 /// Trim for various Centcom corpses.
 /datum/id_trim/centcom/corpse/private_security
@@ -115,18 +116,13 @@
 /datum/id_trim/pirate/captain
 	assignment = "Pirate Captain"
 	trim_state = "trim_captain"
+	big_pointer = TRUE
 
 /datum/id_trim/pirate/silverscale
 	assignment = "Silver Scale Member"
 
 /datum/id_trim/pirate/captain/silverscale
 	assignment = "Silver Scale VIP"
-
-/datum/id_trim/pirate/psykers
-	assignment = "Psyker-gang Member"
-
-/datum/id_trim/pirate/captain/psykers
-	assignment = "Psyker-gang Leader"
 
 //Trims for Dangerous Research, used in ``dangerous_research.dm``
 /datum/id_trim/away/dangerous_research
@@ -136,6 +132,7 @@
 /datum/id_trim/away/dangerous_research/head_occultist
 	assignment = "Head Occultist"
 	access = list(ACCESS_AWAY_SCIENCE, ACCESS_AWAY_COMMAND)
+	big_pointer = TRUE
 
 //Trims for waystation.dmm space ruin
 /datum/id_trim/away/waystation/cargo_technician
@@ -149,6 +146,7 @@
 	trim_state = "trim_quartermaster"
 	department_color = COLOR_CARGO_BROWN
 	access = list(ACCESS_AWAY_SUPPLY, ACCESS_AWAY_COMMAND)
+	big_pointer = TRUE
 
 /datum/id_trim/away/waystation/security
 	assignment = "Waystation Security Officer"
@@ -168,3 +166,17 @@
 /datum/id_trim/away/the_outlet/mad_manager
 	assignment = "The Mad Manager"
 	access = list(ACCESS_AWAY_GENERAL, ACCESS_AWAY_MEDICAL, ACCESS_AWAY_SEC)
+	big_pointer = TRUE
+
+//Haunted Trading Post IDs
+/datum/id_trim/away/hauntedtradingpost
+	assignment = "Donk Co. Employee"
+	department_color = COLOR_ENGINEERING_ORANGE
+	sechud_icon_state = SECHUD_SYNDICATE
+	threat_modifier = 5
+	access = list(ACCESS_SYNDICATE)
+
+/datum/id_trim/away/hauntedtradingpost/boss
+	assignment = "Donk Co. Executive"
+	access = list(ACCESS_SYNDICATE, ACCESS_AWAY_COMMAND)
+	big_pointer = TRUE

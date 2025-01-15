@@ -1,7 +1,7 @@
 /obj/item/reagent_containers/spray/waterflower/lube
 	name = "water flower"
 	desc = "A seemingly innocent sunflower...with a twist. A <i>slippery</i> twist."
-	icon = 'icons/obj/hydroponics/harvest.dmi'
+	icon = 'icons/obj/service/hydroponics/harvest.dmi'
 	icon_state = "sunflower"
 	inhand_icon_state = "sunflower"
 	amount_per_transfer_from_this = 3
@@ -17,6 +17,7 @@
 	desc = "advanced clown shoes that protect the wearer and render them nearly immune to slipping on their own peels. They also squeak at 100% capacity."
 	clothing_traits = list(TRAIT_NO_SLIP_WATER)
 	slowdown = SHOES_SLOWDOWN
+	body_parts_covered = FEET|LEGS
 	armor_type = /datum/armor/clown_shoes_combat
 	strip_delay = 70
 	resistance_flags = NONE
@@ -49,6 +50,7 @@
 	strip_delay = 70
 	resistance_flags = NONE
 	always_noslip = TRUE
+	body_parts_covered = FEET|LEGS
 
 /datum/armor/banana_shoes_combat
 	melee = 25
@@ -64,13 +66,11 @@
 	. = ..()
 
 	create_storage(storage_type = /datum/storage/pockets/shoes)
-
-	var/datum/component/material_container/bananium = GetComponent(/datum/component/material_container)
 	bananium.insert_amount_mat(BANANA_SHOES_MAX_CHARGE, /datum/material/bananium)
+
 	START_PROCESSING(SSobj, src)
 
 /obj/item/clothing/shoes/clown_shoes/banana_shoes/combat/process(seconds_per_tick)
-	var/datum/component/material_container/bananium = GetComponent(/datum/component/material_container)
 	var/bananium_amount = bananium.get_material_amount(/datum/material/bananium)
 	if(bananium_amount < BANANA_SHOES_MAX_CHARGE)
 		bananium.insert_amount_mat(min(BANANA_SHOES_RECHARGE_RATE * seconds_per_tick, BANANA_SHOES_MAX_CHARGE - bananium_amount), /datum/material/bananium)
@@ -91,7 +91,7 @@
 	force = 0
 	throwforce = 0
 	hitsound = null
-	embedding = null
+	embed_type = null
 	light_color = COLOR_YELLOW
 	sword_color_icon = "bananium"
 	active_heat = 0
@@ -99,11 +99,13 @@
 	COOLDOWN_DECLARE(next_trombone_allowed)
 
 /obj/item/melee/energy/sword/bananium/make_transformable()
-	AddComponent(/datum/component/transforming, \
+	AddComponent( \
+		/datum/component/transforming, \
 		throw_speed_on = 4, \
 		attack_verb_continuous_on = list("slips"), \
 		attack_verb_simple_on = list("slip"), \
-		clumsy_check = FALSE)
+		clumsy_check = FALSE, \
+	)
 	RegisterSignal(src, COMSIG_TRANSFORMING_ON_TRANSFORM, PROC_REF(on_transform))
 
 /obj/item/melee/energy/sword/bananium/on_transform(obj/item/source, mob/user, active)
@@ -114,20 +116,20 @@
  * Adds or removes a slippery component, depending on whether the sword is active or not.
  */
 /obj/item/melee/energy/sword/bananium/proc/adjust_slipperiness()
-	if(blade_active)
+	if(HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		AddComponent(/datum/component/slippery, 60, GALOSHES_DONT_HELP)
 	else
 		qdel(GetComponent(/datum/component/slippery))
 
 /obj/item/melee/energy/sword/bananium/attack(mob/living/M, mob/living/user)
 	. = ..()
-	if(blade_active)
+	if(HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		var/datum/component/slippery/slipper = GetComponent(/datum/component/slippery)
 		slipper.Slip(src, M)
 
 /obj/item/melee/energy/sword/bananium/throw_impact(atom/hit_atom, throwingdatum)
 	. = ..()
-	if(blade_active)
+	if(HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		var/datum/component/slippery/slipper = GetComponent(/datum/component/slippery)
 		slipper.Slip(src, hit_atom)
 
@@ -140,7 +142,7 @@
 	return ..()
 
 /obj/item/melee/energy/sword/bananium/suicide_act(mob/living/user)
-	if(!blade_active)
+	if(!HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		attack_self(user)
 	user.visible_message(span_suicide("[user] is [pick("slitting [user.p_their()] stomach open with", "falling on")] [src]! It looks like [user.p_theyre()] trying to commit seppuku, but the blade slips off of [user.p_them()] harmlessly!"))
 	var/datum/component/slippery/slipper = GetComponent(/datum/component/slippery)
@@ -172,7 +174,7 @@
  * Adds or removes a slippery and boomerang component, depending on whether the shield is active or not.
  */
 /obj/item/shield/energy/bananium/proc/adjust_comedy()
-	if(enabled)
+	if(HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		AddComponent(/datum/component/slippery, 60, GALOSHES_DONT_HELP)
 		AddComponent(/datum/component/boomerang, throw_range+2, TRUE)
 	else
@@ -180,7 +182,7 @@
 		qdel(GetComponent(/datum/component/boomerang))
 
 /obj/item/shield/energy/bananium/throw_impact(atom/hit_atom, datum/thrownthing/throwingdatum)
-	if(enabled)
+	if(HAS_TRAIT(src, TRAIT_TRANSFORM_ACTIVE))
 		var/caught = hit_atom.hitby(src, FALSE, FALSE, throwingdatum=throwingdatum)
 		if(iscarbon(hit_atom) && !caught)//if they are a carbon and they didn't catch it
 			var/datum/component/slippery/slipper = GetComponent(/datum/component/slippery)
@@ -192,7 +194,7 @@
 //BOMBANANA
 
 /obj/item/seeds/banana/bombanana
-	name = "pack of bombanana seeds"
+	name = "bombanana seed pack"
 	desc = "They're seeds that grow into bombanana trees. When grown, give to the clown."
 	plantname = "Bombanana Tree"
 	product = /obj/item/food/grown/banana/bombanana
@@ -203,20 +205,44 @@
 	tastes = list("explosives" = 10)
 	food_reagents = list(/datum/reagent/consumable/nutriment/vitamin = 1)
 
+/obj/item/food/grown/banana/bombanana/Initialize(mapload)
+	. = ..()
+	RegisterSignal(src, COMSIG_FOOD_CONSUMED, PROC_REF(on_consumed))
+
+/// Log whenever someone eats this with an explicit message since it willspawn a live bomb.
+/obj/item/food/grown/banana/bombanana/proc/on_consumed(datum/source, mob/living/eater, mob/feeder)
+	SIGNAL_HANDLER
+	var/list/concatable = list("[key_name_and_tag(eater)] has eaten a bombanana!")
+	if(feeder != eater)
+		concatable += "This person was fed this by [key_name_and_tag(feeder)]."
+
+	concatable += "As a result of this, a bombanana peel will be spawned at [AREACOORD(src)]."
+
+	var/final_string = jointext(concatable, " ")
+	log_bomber(details = final_string) // sorta wacks out the traditional "log_bomber" format but it gets the point across better
+	return NONE
+
 /obj/item/grown/bananapeel/bombanana
-	desc = "A peel from a banana. Why is it beeping?"
+	desc = parent_type::desc + " Why is it beeping?"
 	seed = /obj/item/seeds/banana/bombanana
-	var/det_time = 50
+	/// How long we have until we explode.
+	var/det_time = 5 SECONDS
+	/// Ref to the bomb we spawn when we explode.
 	var/obj/item/grenade/syndieminibomb/bomb
 
 /obj/item/grown/bananapeel/bombanana/Initialize(mapload)
 	. = ..()
 	AddComponent(/datum/component/slippery, det_time)
 	bomb = new /obj/item/grenade/syndieminibomb(src)
+	bomb.name = "bombanana peel"
 	bomb.det_time = det_time
+
+	var/potential_user = null
 	if(iscarbon(loc))
 		to_chat(loc, span_danger("[src] begins to beep."))
-	bomb.arm_grenade(loc, null, FALSE)
+		potential_user = loc // just for fingerprint diagnosis in explosion logging, the on_consumed proc will have provided the necessary context already
+
+	bomb.arm_grenade(potential_user, msg = FALSE)
 
 /obj/item/grown/bananapeel/bombanana/Destroy()
 	. = ..()

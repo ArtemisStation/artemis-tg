@@ -3,6 +3,8 @@
 	desc = "High speed, low drag combat boots."
 	icon_state = "jackboots"
 	inhand_icon_state = "jackboots"
+	supports_variations_flags = CLOTHING_DIGITIGRADE_MASK
+	body_parts_covered = FEET|LEGS
 	armor_type = /datum/armor/shoes_combat
 	strip_delay = 40
 	resistance_flags = NONE
@@ -20,8 +22,8 @@
 
 /obj/item/clothing/shoes/combat/Initialize(mapload)
 	. = ..()
-
 	create_storage(storage_type = /datum/storage/pockets/shoes)
+	AddElement(/datum/element/ignites_matches)
 
 /obj/item/clothing/shoes/combat/swat //overpowered boots for death squads
 	name = "\improper SWAT boots"
@@ -44,19 +46,21 @@
 	desc = "Nanotrasen-issue Security combat boots for combat scenarios or combat situations. All combat, all the time."
 	icon_state = "jackboots"
 	inhand_icon_state = "jackboots"
+	supports_variations_flags = CLOTHING_DIGITIGRADE_MASK
 	strip_delay = 30
 	equip_delay_other = 50
 	resistance_flags = NONE
 	armor_type = /datum/armor/shoes_jackboots
 	can_be_tied = FALSE
+	body_parts_covered = FEET|LEGS
 
 /datum/armor/shoes_jackboots
 	bio = 90
 
 /obj/item/clothing/shoes/jackboots/Initialize(mapload)
 	. = ..()
-
 	create_storage(storage_type = /datum/storage/pockets/shoes)
+	AddElement(/datum/element/ignites_matches)
 
 /obj/item/clothing/shoes/jackboots/fast
 	slowdown = -1
@@ -64,11 +68,23 @@
 /obj/item/clothing/shoes/jackboots/sec
 	icon_state = "jackboots_sec"
 
+/obj/item/clothing/shoes/jackboots/floortile
+	name = "floortile camouflage jackboots"
+	desc = "Is it just me or is there a pair of jackboots on the floor?"
+	icon_state = "ftc_boots"
+	inhand_icon_state = null
+	supports_variations_flags = NONE
+
+/obj/item/clothing/shoes/jackboots/floortile/Initialize(mapload)
+	. = ..()
+	AddComponent(/datum/component/adjust_fishing_difficulty, -5) //tacticool
+
 /obj/item/clothing/shoes/winterboots
 	name = "winter boots"
 	desc = "Boots lined with 'synthetic' animal fur."
 	icon_state = "winterboots"
 	inhand_icon_state = null
+	supports_variations_flags = CLOTHING_DIGITIGRADE_MASK
 	armor_type = /datum/armor/shoes_winterboots
 	cold_protection = FEET|LEGS
 	min_cold_protection_temperature = SHOES_MIN_TEMP_PROTECT
@@ -81,8 +97,8 @@
 
 /obj/item/clothing/shoes/winterboots/Initialize(mapload)
 	. = ..()
-
 	create_storage(storage_type = /datum/storage/pockets/shoes)
+	AddElement(/datum/element/ignites_matches)
 
 /obj/item/clothing/shoes/winterboots/ice_boots
 	name = "ice hiking boots"
@@ -102,6 +118,7 @@
 	strip_delay = 4 SECONDS
 	equip_delay_other = 4 SECONDS
 	clothing_flags = THICKMATERIAL
+	body_parts_covered = FEET|LEGS
 	resistance_flags = NONE
 
 /datum/armor/ice_boots_eva
@@ -118,18 +135,18 @@
 	icon_state = "workboots"
 	inhand_icon_state = "jackboots"
 	armor_type = /datum/armor/shoes_workboots
+	supports_variations_flags = CLOTHING_DIGITIGRADE_MASK
 	strip_delay = 20
 	equip_delay_other = 40
 	lace_time = 8 SECONDS
-	species_exception = list(/datum/species/golem/uranium)
 
 /datum/armor/shoes_workboots
 	bio = 80
 
 /obj/item/clothing/shoes/workboots/Initialize(mapload)
 	. = ..()
-
 	create_storage(storage_type = /datum/storage/pockets/shoes)
+	AddElement(/datum/element/ignites_matches)
 
 /obj/item/clothing/shoes/workboots/mining
 	name = "mining boots"
@@ -143,11 +160,12 @@
 	icon_state = "rus_shoes"
 	inhand_icon_state = null
 	lace_time = 8 SECONDS
+	supports_variations_flags = CLOTHING_DIGITIGRADE_MASK
 
 /obj/item/clothing/shoes/russian/Initialize(mapload)
 	. = ..()
-
 	create_storage(storage_type = /datum/storage/pockets/shoes)
+	AddElement(/datum/element/ignites_matches)
 
 /obj/item/clothing/shoes/discoshoes
 	name = "green lizardskin shoes"
@@ -160,3 +178,30 @@
 	desc = "A crisp, clean set of boots for working long hours on the beat."
 	icon_state = "aerostatic_boots"
 	inhand_icon_state = null
+
+/obj/item/clothing/shoes/pirate
+	name = "pirate boots"
+	desc = "Yarr."
+	icon_state = "pirateboots"
+	inhand_icon_state = null
+
+/obj/item/clothing/shoes/pirate/Initialize(mapload)
+	. = ..()
+	AddComponent(/datum/component/adjust_fishing_difficulty, -4)
+
+/obj/item/clothing/shoes/pirate/armored
+	armor_type = /datum/armor/shoes_pirate
+	strip_delay = 40
+	resistance_flags = NONE
+	lace_time = 12 SECONDS
+	body_parts_covered = FEET|LEGS
+
+/datum/armor/shoes_pirate
+	melee = 25
+	bullet = 25
+	laser = 25
+	energy = 25
+	bomb = 50
+	bio = 90
+	fire = 70
+	acid = 50

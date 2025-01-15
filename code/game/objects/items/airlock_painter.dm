@@ -2,15 +2,15 @@
 	name = "airlock painter"
 	desc = "An advanced autopainter preprogrammed with several paintjobs for airlocks. Use it on an airlock during or after construction to change the paintjob."
 	desc_controls = "Alt-Click to remove the ink cartridge."
-	icon = 'icons/obj/objects.dmi'
+	icon = 'icons/obj/devices/tool.dmi'
 	icon_state = "paint_sprayer"
 	inhand_icon_state = "paint_sprayer"
 	worn_icon_state = "painter"
 	w_class = WEIGHT_CLASS_SMALL
 
-	custom_materials = list(/datum/material/iron=50, /datum/material/glass=50)
+	custom_materials = list(/datum/material/iron= SMALL_MATERIAL_AMOUNT * 0.5, /datum/material/glass= SMALL_MATERIAL_AMOUNT * 0.5)
 
-	flags_1 = CONDUCT_1
+	obj_flags = CONDUCTS_ELECTRICITY
 	item_flags = NOBLUDGEON
 	slot_flags = ITEM_SLOT_BELT
 	usesound = 'sound/effects/spray2.ogg'
@@ -43,6 +43,12 @@
 	. = ..()
 	ink = new initial_ink_type(src)
 
+
+/obj/item/airlock_painter/Destroy(force)
+	QDEL_NULL(ink)
+	return ..()
+
+
 //This proc doesn't just check if the painter can be used, but also uses it.
 //Only call this if you are certain that the painter will be used right after this check!
 /obj/item/airlock_painter/proc/use_paint(mob/user)
@@ -67,7 +73,7 @@
 		return TRUE
 
 /obj/item/airlock_painter/suicide_act(mob/living/user)
-	var/obj/item/organ/internal/lungs/L = user.get_organ_slot(ORGAN_SLOT_LUNGS)
+	var/obj/item/organ/lungs/L = user.get_organ_slot(ORGAN_SLOT_LUNGS)
 
 	if(can_use(user) && L)
 		user.visible_message(span_suicide("[user] is inhaling toner from [src]! It looks like [user.p_theyre()] trying to commit suicide!"))
@@ -141,23 +147,25 @@
 	else
 		return ..()
 
-/obj/item/airlock_painter/AltClick(mob/user)
-	. = ..()
-	if(ink)
-		playsound(src.loc, 'sound/machines/click.ogg', 50, TRUE)
-		ink.forceMove(user.drop_location())
-		user.put_in_hands(ink)
-		to_chat(user, span_notice("You remove [ink] from [src]."))
-		ink = null
+/obj/item/airlock_painter/click_alt(mob/user)
+	if(!ink)
+		return CLICK_ACTION_BLOCKING
+
+	playsound(src.loc, 'sound/machines/click.ogg', 50, TRUE)
+	ink.forceMove(user.drop_location())
+	user.put_in_hands(ink)
+	to_chat(user, span_notice("You remove [ink] from [src]."))
+	ink = null
+	return CLICK_ACTION_SUCCESS
 
 /obj/item/airlock_painter/decal
 	name = "decal painter"
 	desc = "An airlock painter, reprogramed to use a different style of paint in order to apply decals for floor tiles as well, in addition to repainting doors. Decals break when the floor tiles are removed."
 	desc_controls = "Alt-Click to remove the ink cartridge."
-	icon = 'icons/obj/objects.dmi'
+	icon = 'icons/obj/devices/tool.dmi'
 	icon_state = "decal_sprayer"
 	inhand_icon_state = "decal_sprayer"
-	custom_materials = list(/datum/material/iron=50, /datum/material/glass=50)
+	custom_materials = list(/datum/material/iron= SMALL_MATERIAL_AMOUNT * 0.5, /datum/material/glass= SMALL_MATERIAL_AMOUNT * 0.5)
 	initial_ink_type = /obj/item/toner/large
 	/// The current direction of the decal being printed
 	var/stored_dir = 2
@@ -211,20 +219,17 @@
 	. = ..()
 	stored_custom_color = stored_color
 
-/obj/item/airlock_painter/decal/afterattack(atom/target, mob/user, proximity)
-	. = ..()
-	if(!proximity)
-		balloon_alert(user, "get closer!")
-		return
-
-	if(isfloorturf(target) && use_paint(user))
-		paint_floor(target)
+/obj/item/airlock_painter/decal/interact_with_atom(atom/interacting_with, mob/living/user, list/modifiers)
+	if(isfloorturf(interacting_with) && use_paint(user))
+		paint_floor(interacting_with)
+		return ITEM_INTERACT_SUCCESS
+	return NONE
 
 /**
  * Actually add current decal to the floor.
  *
  * Responsible for actually adding the element to the turf for maximum flexibility.area
- * Can be overriden for different decal behaviors.
+ * Can be overridden for different decal behaviors.
  * Arguments:
  * * target - The turf being painted to
 */
@@ -293,7 +298,7 @@
 	.["current_dir"] = stored_dir
 	.["current_custom_color"] = stored_custom_color
 
-/obj/item/airlock_painter/decal/ui_act(action, list/params)
+/obj/item/airlock_painter/decal/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()
 	if(.)
 		return
@@ -321,7 +326,6 @@
 
 /datum/asset/spritesheet/decals
 	name = "floor_decals"
-	cross_round_cachable = TRUE
 
 	/// The floor icon used for blend_preview_floor()
 	var/preview_floor_icon = 'icons/turf/floors.dmi'

@@ -29,15 +29,17 @@
 	var/ignore_syncmesh_share = 0
 	/// If the blob blocks atmos and heat spread
 	var/atmosblock = FALSE
-	var/mob/camera/blob/overmind
+	var/mob/eye/blob/overmind
 
 
 /datum/armor/structure_blob
 	fire = 80
 	acid = 70
+	laser = 50
 
 /obj/structure/blob/Initialize(mapload, owner_overmind)
 	. = ..()
+	ADD_TRAIT(src, TRAIT_CHASM_DESTROYED, INNATE_TRAIT)
 	register_context()
 	if(owner_overmind)
 		overmind = owner_overmind
@@ -127,13 +129,13 @@
 	return FALSE //oh no we failed
 
 /obj/structure/blob/proc/ConsumeTile()
-	for(var/atom/A in loc)
-		if(!A.can_blob_attack())
+	for(var/atom/thing in loc)
+		if(!thing.can_blob_attack())
 			continue
-		if(isliving(A) && overmind && !isblobmonster(A)) // Make sure to inject strain-reagents with automatic attacks when needed.
-			overmind.blobstrain.attack_living(A)
+		if(isliving(thing) && overmind && !HAS_TRAIT(thing, TRAIT_BLOB_ALLY)) // Make sure to inject strain-reagents with automatic attacks when needed.
+			overmind.blobstrain.attack_living(thing)
 			continue // Don't smack them twice though
-		A.blob_act(src)
+		thing.blob_act(src)
 	if(iswallturf(loc))
 		loc.blob_act(src) //don't ask how a wall got on top of the core, just eat it
 
@@ -142,7 +144,7 @@
 	O.setDir(dir)
 	var/area/my_area = get_area(src)
 	if(controller)
-		var/mob/camera/blob/BO = controller
+		var/mob/eye/blob/BO = controller
 		O.color = BO.blobstrain.color
 		if(!(my_area.area_flags & BLOBS_ALLOWED))
 			O.color = BlendRGB(O.color, COLOR_WHITE, 0.5) //lighten it to indicate an off-station blob
@@ -173,6 +175,7 @@
 	if(isspaceturf(T) && !(locate(/obj/structure/lattice) in T) && prob(80))
 		make_blob = FALSE
 		playsound(src.loc, 'sound/effects/splat.ogg', 50, TRUE) //Let's give some feedback that we DID try to spawn in space, since players are used to it
+		balloon_alert(controller, "failed to expand!")
 
 	ConsumeTile() //hit the tile we're in, making sure there are no border objects blocking us
 	if(!T.CanPass(src, get_dir(T, src))) //is the target turf impassable
@@ -225,10 +228,10 @@
 /obj/structure/blob/zap_act(power, zap_flags)
 	if(overmind)
 		if(overmind.blobstrain.tesla_reaction(src, power))
-			take_damage(power * 0.0025, BURN, ENERGY)
+			take_damage(power * 1.25e-3, BURN, ENERGY)
 	else
-		take_damage(power * 0.0025, BURN, ENERGY)
-	power -= power * 0.0025 //You don't get to do it for free
+		take_damage(power * 1.25e-3, BURN, ENERGY)
+	power -= power * 2.5e-3 //You don't get to do it for free
 	return ..() //You don't get to do it for free
 
 /obj/structure/blob/extinguish()
@@ -279,11 +282,11 @@
 	switch(damage_type)
 		if(BRUTE)
 			if(damage_amount)
-				playsound(src.loc, 'sound/effects/attackblob.ogg', 50, TRUE)
+				playsound(src.loc, 'sound/effects/blob/attackblob.ogg', 50, TRUE)
 			else
-				playsound(src, 'sound/weapons/tap.ogg', 50, TRUE)
+				playsound(src, 'sound/items/weapons/tap.ogg', 50, TRUE)
 		if(BURN)
-			playsound(src.loc, 'sound/items/welder.ogg', 100, TRUE)
+			playsound(src.loc, 'sound/items/tools/welder.ogg', 100, TRUE)
 
 /obj/structure/blob/run_atom_armor(damage_amount, damage_type, damage_flag = 0, attack_dir)
 	switch(damage_type)
@@ -291,7 +294,6 @@
 			damage_amount *= brute_resist
 		if(BURN)
 			damage_amount *= fire_resist
-		if(CLONE)
 		else
 			return 0
 	var/armor_protection = 0
@@ -398,13 +400,6 @@
 	/// The radius up to which this special structure naturally grows normal blobs.
 	var/expand_range = 0
 
-	// Spore production vars: for core, factories, and nodes (with strains)
-	var/mob/living/simple_animal/hostile/blob/blobbernaut/naut = null
-	var/max_spores = 0
-	var/list/spores = list()
-	COOLDOWN_DECLARE(spore_delay)
-	var/spore_cooldown = BLOBMOB_SPORE_SPAWN_COOLDOWN
-
 	// Area reinforcement vars: used by cores and nodes, for strains to modify
 	/// Range this blob free upgrades to strong blobs at: for the core, and for strains
 	var/strong_reinforce_range = 0
@@ -421,7 +416,7 @@
 			if(SPT_PROB(BLOB_REINFORCE_CHANCE, seconds_per_tick))
 				B.change_to(/obj/structure/blob/shield/reflective/core, overmind)
 
-/obj/structure/blob/special/proc/pulse_area(mob/camera/blob/pulsing_overmind, claim_range = 10, pulse_range = 3, expand_range = 2)
+/obj/structure/blob/special/proc/pulse_area(mob/eye/blob/pulsing_overmind, claim_range = 10, pulse_range = 3, expand_range = 2)
 	if(QDELETED(pulsing_overmind))
 		pulsing_overmind = overmind
 	Be_Pulsed()
@@ -452,17 +447,3 @@
 						expanded = TRUE
 		if(distance <= pulse_range)
 			B.Be_Pulsed()
-
-/obj/structure/blob/special/proc/produce_spores()
-	if(naut)
-		return
-	if(spores.len >= max_spores)
-		return
-	if(!COOLDOWN_FINISHED(src, spore_delay))
-		return
-	COOLDOWN_START(src, spore_delay, spore_cooldown)
-	var/mob/living/simple_animal/hostile/blob/blobspore/BS = new (loc, src)
-	if(overmind) //if we don't have an overmind, we don't need to do anything but make a spore
-		BS.overmind = overmind
-		BS.update_icons()
-		overmind.blob_mobs.Add(BS)

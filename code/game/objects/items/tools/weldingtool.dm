@@ -1,5 +1,3 @@
-/// How many seconds between each fuel depletion tick ("use" proc)
-#define WELDER_FUEL_BURN_INTERVAL 26
 /obj/item/weldingtool
 	name = "welding tool"
 	desc = "A standard edition welder provided by Nanotrasen."
@@ -9,17 +7,17 @@
 	worn_icon_state = "welder"
 	lefthand_file = 'icons/mob/inhands/equipment/tools_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/equipment/tools_righthand.dmi'
-	flags_1 = CONDUCT_1
+	obj_flags = CONDUCTS_ELECTRICITY
 	slot_flags = ITEM_SLOT_BELT
 	force = 3
 	throwforce = 5
 	hitsound = SFX_SWING_HIT
-	usesound = list('sound/items/welder.ogg', 'sound/items/welder2.ogg')
-	drop_sound = 'sound/items/handling/weldingtool_drop.ogg'
-	pickup_sound = 'sound/items/handling/weldingtool_pickup.ogg'
-	light_system = MOVABLE_LIGHT
+	usesound = list('sound/items/tools/welder.ogg', 'sound/items/tools/welder2.ogg')
+	drop_sound = 'sound/items/handling/tools/weldingtool_drop.ogg'
+	pickup_sound = 'sound/items/handling/tools/weldingtool_pickup.ogg'
+	light_system = OVERLAY_LIGHT
 	light_range = 2
-	light_power = 0.75
+	light_power = 1.5
 	light_color = LIGHT_COLOR_FIRE
 	light_on = FALSE
 	throw_speed = 3
@@ -32,7 +30,7 @@
 	toolspeed = 1
 	wound_bonus = 10
 	bare_wound_bonus = 15
-	custom_materials = list(/datum/material/iron=70, /datum/material/glass=30)
+	custom_materials = list(/datum/material/iron=SMALL_MATERIAL_AMOUNT*0.7, /datum/material/glass=SMALL_MATERIAL_AMOUNT*0.3)
 	/// Whether the welding tool is on or off.
 	var/welding = FALSE
 	/// Whether the welder is secured or unsecured (able to attach rods to it to make a flamethrower)
@@ -48,8 +46,8 @@
 	/// When fuel was last removed.
 	var/burned_fuel_for = 0
 
-	var/activation_sound = 'sound/items/welderactivate.ogg'
-	var/deactivation_sound = 'sound/items/welderdeactivate.ogg'
+	var/activation_sound = 'sound/items/tools/welderactivate.ogg'
+	var/deactivation_sound = 'sound/items/tools/welderdeactivate.ogg'
 
 /datum/armor/item_weldingtool
 	fire = 100
@@ -57,7 +55,7 @@
 
 /obj/item/weldingtool/Initialize(mapload)
 	. = ..()
-	AddElement(/datum/element/update_icon_updates_onmob, ITEM_SLOT_HANDS)
+	AddElement(/datum/element/update_icon_updates_onmob)
 	AddElement(/datum/element/tool_flash, light_range)
 	AddElement(/datum/element/falling_hazard, damage = force, wound_bonus = wound_bonus, hardhat_safety = TRUE, crushes = FALSE, impact_sound = hitsound)
 
@@ -89,7 +87,7 @@
 		force = 15
 		damtype = BURN
 		burned_fuel_for += seconds_per_tick
-		if(burned_fuel_for >= WELDER_FUEL_BURN_INTERVAL)
+		if(burned_fuel_for >= TOOL_FUEL_BURN_INTERVAL)
 			use(TRUE)
 		update_appearance()
 
@@ -112,7 +110,7 @@
 
 /obj/item/weldingtool/screwdriver_act(mob/living/user, obj/item/tool)
 	flamethrower_screwdriver(tool, user)
-	return TOOL_ACT_TOOLTYPE_SUCCESS
+	return ITEM_INTERACT_SUCCESS
 
 /obj/item/weldingtool/attackby(obj/item/tool, mob/user, params)
 	if(istype(tool, /obj/item/stack/rods))
@@ -129,64 +127,61 @@
 /obj/item/weldingtool/use_tool(atom/target, mob/living/user, delay, amount, volume, datum/callback/extra_checks)
 	var/mutable_appearance/sparks = mutable_appearance('icons/effects/welding_effect.dmi', "welding_sparks", GASFIRE_LAYER, src, ABOVE_LIGHTING_PLANE)
 	target.add_overlay(sparks)
-	LAZYADD(update_overlays_on_z, sparks)
+	LAZYADD(target.update_overlays_on_z, sparks)
 	. = ..()
-	LAZYREMOVE(update_overlays_on_z, sparks)
+	LAZYREMOVE(target.update_overlays_on_z, sparks)
 	target.cut_overlay(sparks)
 
-/obj/item/weldingtool/attack(mob/living/carbon/human/attacked_humanoid, mob/living/user)
-	if(!istype(attacked_humanoid))
-		return ..()
-
-	var/obj/item/bodypart/affecting = attacked_humanoid.get_bodypart(check_zone(user.zone_selected))
-
-	if(affecting && !IS_ORGANIC_LIMB(affecting) && !user.combat_mode)
-		if(src.use_tool(attacked_humanoid, user, 0, volume=50, amount=1))
-			if(user == attacked_humanoid)
-				user.visible_message(span_notice("[user] starts to fix some of the dents on [attacked_humanoid]'s [affecting.name]."),
-					span_notice("You start fixing some of the dents on [attacked_humanoid == user ? "your" : "[attacked_humanoid]'s"] [affecting.name]."))
-				if(!do_after(user, 5 SECONDS, attacked_humanoid))
-					return
-			item_heal_robotic(attacked_humanoid, user, 15, 0)
-	else
-		return ..()
-
-/obj/item/weldingtool/afterattack(atom/attacked_atom, mob/user, proximity)
-	. = ..()
-	if(!proximity)
-		return
-
-	if(isOn())
-		. |= AFTERATTACK_PROCESSED_ITEM
-		if (!QDELETED(attacked_atom) && isliving(attacked_atom)) // can't ignite something that doesn't exist
-			handle_fuel_and_temps(1, user)
-			var/mob/living/attacked_mob = attacked_atom
-			if(attacked_mob.ignite_mob())
-				message_admins("[ADMIN_LOOKUPFLW(user)] set [key_name_admin(attacked_mob)] on fire with [src] at [AREACOORD(user)]")
-				user.log_message("set [key_name(attacked_mob)] on fire with [src].", LOG_ATTACK)
-
-	if(!status && attacked_atom.is_refillable())
-		. |= AFTERATTACK_PROCESSED_ITEM
-		reagents.trans_to(attacked_atom, reagents.total_volume, transfered_by = user)
-		to_chat(user, span_notice("You empty [src]'s fuel tank into [attacked_atom]."))
+/obj/item/weldingtool/interact_with_atom(atom/interacting_with, mob/living/user, list/modifiers)
+	if(!status && interacting_with.is_refillable())
+		reagents.trans_to(interacting_with, reagents.total_volume, transferred_by = user)
+		to_chat(user, span_notice("You empty [src]'s fuel tank into [interacting_with]."))
 		update_appearance()
+		return ITEM_INTERACT_SUCCESS
+	if(!ishuman(interacting_with))
+		return NONE
+	if(user.combat_mode)
+		return NONE
 
-	return .
+	return try_heal_loop(interacting_with, user)
 
-/obj/item/weldingtool/attack_qdeleted(atom/attacked_atom, mob/user, proximity)
-	. = ..()
-	if(!proximity)
+/obj/item/weldingtool/proc/try_heal_loop(atom/interacting_with, mob/living/user, repeating = FALSE)
+	var/mob/living/carbon/human/attacked_humanoid = interacting_with
+	var/obj/item/bodypart/affecting = attacked_humanoid.get_bodypart(check_zone(user.zone_selected))
+	if(isnull(affecting) || !IS_ROBOTIC_LIMB(affecting))
+		return NONE
+
+	if (!affecting.brute_dam)
+		balloon_alert(user, "limb not damaged")
+		return ITEM_INTERACT_BLOCKING
+
+	user.visible_message(span_notice("[user] starts to fix some of the dents on [attacked_humanoid == user ? user.p_their() : "[attacked_humanoid]'s"] [affecting.name]."),
+		span_notice("You start fixing some of the dents on [attacked_humanoid == user ? "your" : "[attacked_humanoid]'s"] [affecting.name]."))
+	var/use_delay = repeating ? 1 SECONDS : 0
+	if(user == attacked_humanoid)
+		use_delay = 5 SECONDS
+
+	if(!use_tool(attacked_humanoid, user, use_delay, volume=50, amount=1))
+		return ITEM_INTERACT_BLOCKING
+
+	if (!attacked_humanoid.item_heal(user, brute_heal = 15, burn_heal = 0, heal_message_brute = "dents", heal_message_burn = "burnt wires", required_bodytype = BODYTYPE_ROBOTIC))
+		return ITEM_INTERACT_BLOCKING
+
+	INVOKE_ASYNC(src, PROC_REF(try_heal_loop), interacting_with, user, TRUE)
+	return ITEM_INTERACT_SUCCESS
+
+/obj/item/weldingtool/afterattack(atom/target, mob/user, click_parameters)
+	if(!isOn())
 		return
-
-	if(isOn())
-		handle_fuel_and_temps(1, user)
-
-		if(!QDELETED(attacked_atom) && isliving(attacked_atom)) // can't ignite something that doesn't exist
-			var/mob/living/attacked_mob = attacked_atom
-			if(attacked_mob.ignite_mob())
-				message_admins("[ADMIN_LOOKUPFLW(user)] set [key_name_admin(attacked_mob)] on fire with [src] at [AREACOORD(user)].")
-				user.log_message("set [key_name(attacked_mob)] on fire with [src]", LOG_ATTACK)
-
+	use(1)
+	var/turf/location = get_turf(user)
+	location.hotspot_expose(700, 50, 1)
+	if(QDELETED(target) || !isliving(target)) // can't ignite something that doesn't exist
+		return
+	var/mob/living/attacked_mob = target
+	if(attacked_mob.ignite_mob())
+		message_admins("[ADMIN_LOOKUPFLW(user)] set [key_name_admin(attacked_mob)] on fire with [src] at [AREACOORD(user)]")
+		user.log_message("set [key_name(attacked_mob)] on fire with [src].", LOG_ATTACK)
 
 /obj/item/weldingtool/attack_self(mob/user)
 	if(src.reagents.has_reagent(/datum/reagent/toxin/plasma))
@@ -196,11 +191,6 @@
 	switched_on(user)
 
 	update_appearance()
-
-/obj/item/weldingtool/proc/handle_fuel_and_temps(used = 0, mob/living/user)
-	use(used)
-	var/turf/location = get_turf(user)
-	location.hotspot_expose(700, 50, 1)
 
 /// Returns the amount of fuel in the welder
 /obj/item/weldingtool/proc/get_fuel()
@@ -244,7 +234,7 @@
 // /Switches the welder on
 /obj/item/weldingtool/proc/switched_on(mob/user)
 	if(!status)
-		to_chat(user, span_warning("[src] can't be turned on while unsecured!"))
+		balloon_alert(user, "unsecured!")
 		return
 	set_welding(!welding)
 	if(welding)
@@ -252,7 +242,7 @@
 			playsound(loc, activation_sound, 50, TRUE)
 			force = 15
 			damtype = BURN
-			hitsound = 'sound/items/welder.ogg'
+			hitsound = 'sound/items/tools/welder.ogg'
 			update_appearance()
 			START_PROCESSING(SSobj, src)
 		else
@@ -284,16 +274,17 @@
 	return welding
 
 /// If welding tool ran out of fuel during a construction task, construction fails.
-/obj/item/weldingtool/tool_use_check(mob/living/user, amount)
+/obj/item/weldingtool/tool_use_check(mob/living/user, amount, heat_required)
 	if(!isOn() || !check_fuel())
 		to_chat(user, span_warning("[src] has to be on to complete this task!"))
 		return FALSE
-
-	if(get_fuel() >= amount)
-		return TRUE
-	else
+	if(get_fuel() < amount)
 		to_chat(user, span_warning("You need more welding fuel to complete this task!"))
 		return FALSE
+	if(heat < heat_required)
+		to_chat(user, span_warning("[src] is not hot enough to complete this task!"))
+		return FALSE
+	return TRUE
 
 /// Ran when the welder is attacked by a screwdriver.
 /obj/item/weldingtool/proc/flamethrower_screwdriver(obj/item/tool, mob/user)
@@ -325,8 +316,8 @@
 			to_chat(user, span_warning("You need one rod to start building a flamethrower!"))
 
 /obj/item/weldingtool/ignition_effect(atom/ignitable_atom, mob/user)
-	if(use_tool(ignitable_atom, user, 0, amount=1))
-		return span_notice("[user] casually lights [ignitable_atom] with [src], what a badass.")
+	if(use_tool(ignitable_atom, user, 0))
+		return span_rose("[user] casually lights [ignitable_atom] with [src], what a badass.")
 	else
 		return ""
 
@@ -338,7 +329,7 @@
 	desc = "A slightly larger welder with a larger tank."
 	icon_state = "indwelder"
 	max_fuel = 40
-	custom_materials = list(/datum/material/glass=60)
+	custom_materials = list(/datum/material/glass=SMALL_MATERIAL_AMOUNT*0.6)
 
 /obj/item/weldingtool/largetank/flamethrower_screwdriver()
 	return
@@ -365,7 +356,7 @@
 	icon_state = "miniwelder"
 	max_fuel = 10
 	w_class = WEIGHT_CLASS_TINY
-	custom_materials = list(/datum/material/iron=30, /datum/material/glass=10)
+	custom_materials = list(/datum/material/iron=SMALL_MATERIAL_AMOUNT*0.3, /datum/material/glass=SMALL_MATERIAL_AMOUNT*0.1)
 	change_icons = FALSE
 
 /obj/item/weldingtool/mini/flamethrower_screwdriver()
@@ -377,10 +368,10 @@
 /obj/item/weldingtool/abductor
 	name = "alien welding tool"
 	desc = "An alien welding tool. Whatever fuel it uses, it never runs out."
-	icon = 'icons/obj/abductor.dmi'
+	icon = 'icons/obj/antags/abductor.dmi'
 	icon_state = "welder"
 	toolspeed = 0.1
-	custom_materials = list(/datum/material/iron = 5000, /datum/material/silver = 2500, /datum/material/plasma = 5000, /datum/material/titanium = 2000, /datum/material/diamond = 2000)
+	custom_materials = list(/datum/material/iron =SHEET_MATERIAL_AMOUNT * 2.5, /datum/material/silver = SHEET_MATERIAL_AMOUNT*1.25, /datum/material/plasma =SHEET_MATERIAL_AMOUNT * 2.5, /datum/material/titanium =SHEET_MATERIAL_AMOUNT, /datum/material/diamond =SHEET_MATERIAL_AMOUNT)
 	light_system = NO_LIGHT_SUPPORT
 	light_range = 0
 	change_icons = FALSE
@@ -396,7 +387,7 @@
 	icon_state = "upindwelder"
 	inhand_icon_state = "upindwelder"
 	max_fuel = 80
-	custom_materials = list(/datum/material/iron=70, /datum/material/glass=120)
+	custom_materials = list(/datum/material/iron=SMALL_MATERIAL_AMOUNT*0.7, /datum/material/glass=SMALL_MATERIAL_AMOUNT*1.2)
 
 /obj/item/weldingtool/experimental
 	name = "experimental welding tool"
@@ -404,7 +395,7 @@
 	icon_state = "exwelder"
 	inhand_icon_state = "exwelder"
 	max_fuel = 40
-	custom_materials = list(/datum/material/iron = 1000, /datum/material/glass = 500, /datum/material/plasma = 1500, /datum/material/uranium = 200)
+	custom_materials = list(/datum/material/iron =HALF_SHEET_MATERIAL_AMOUNT, /datum/material/glass = SMALL_MATERIAL_AMOUNT*5, /datum/material/plasma =HALF_SHEET_MATERIAL_AMOUNT*1.5, /datum/material/uranium =SMALL_MATERIAL_AMOUNT * 2)
 	change_icons = FALSE
 	can_off_process = TRUE
 	light_range = 1
@@ -418,5 +409,3 @@
 	if(get_fuel() < max_fuel && nextrefueltick < world.time)
 		nextrefueltick = world.time + 10
 		reagents.add_reagent(/datum/reagent/fuel, 1)
-
-#undef WELDER_FUEL_BURN_INTERVAL

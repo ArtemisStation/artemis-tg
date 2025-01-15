@@ -1,10 +1,15 @@
-import { Component, createRef, InfernoNode, RefObject } from 'inferno';
-import { Button, Section, Stack } from '../../components';
-import { FlexProps } from '../../components/Flex';
+import {
+  Component,
+  ComponentProps,
+  createRef,
+  ReactNode,
+  RefObject,
+} from 'react';
+import { Button, Flex, Section, Stack } from 'tgui-core/components';
 
 type TabbedMenuProps = {
-  categoryEntries: [string, InfernoNode][];
-  contentProps?: FlexProps;
+  categoryEntries: [string, ReactNode][];
+  contentProps?: ComponentProps<typeof Flex>;
 };
 
 export class TabbedMenu extends Component<TabbedMenuProps> {
@@ -46,7 +51,8 @@ export class TabbedMenu extends Component<TabbedMenuProps> {
                       }
 
                       currentSection.scrollTop = offsetTop;
-                    }}>
+                    }}
+                  >
                     {category}
                   </Button>
                 </Stack.Item>
@@ -65,13 +71,15 @@ export class TabbedMenu extends Component<TabbedMenuProps> {
 
             // Otherwise, TypeScript complains about invalid prop
             className: undefined,
-          }}>
+          }}
+        >
           <Stack vertical fill px={2}>
             {this.props.categoryEntries.map(([category, children]) => {
               return (
                 <Stack.Item
                   key={category}
-                  innerRef={this.getCategoryRef(category)}>
+                  innerRef={this.getCategoryRef(category)}
+                >
                   <Section fill title={category}>
                     {children}
                   </Section>

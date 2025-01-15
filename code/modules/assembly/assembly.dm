@@ -2,11 +2,11 @@
 /obj/item/assembly
 	name = "assembly"
 	desc = "A small electronic device that should never exist."
-	icon = 'icons/obj/assemblies/new_assemblies.dmi'
+	icon = 'icons/obj/devices/new_assemblies.dmi'
 	icon_state = ""
-	flags_1 = CONDUCT_1
+	obj_flags = CONDUCTS_ELECTRICITY
 	w_class = WEIGHT_CLASS_SMALL
-	custom_materials = list(/datum/material/iron=100)
+	custom_materials = list(/datum/material/iron=SMALL_MATERIAL_AMOUNT)
 	throwforce = 2
 	throw_speed = 3
 	throw_range = 7
@@ -40,18 +40,22 @@
  * Will also be called if the assembly holder is attached to a plasma (internals) tank or welding fuel (dispenser) tank.
  */
 /obj/item/assembly/proc/on_attach()
+	SHOULD_CALL_PARENT(TRUE)
 	if(!holder && connected)
 		holder = connected.holder
+	SEND_SIGNAL(src, COMSIG_ASSEMBLY_ATTACHED, holder)
 
 /**
  * on_detach: Called when removed from an assembly holder or wiring datum
  */
 /obj/item/assembly/proc/on_detach()
+	SHOULD_CALL_PARENT(TRUE)
 	if(connected)
 		connected = null
 	if(!holder)
 		return FALSE
 	forceMove(holder.drop_location())
+	SEND_SIGNAL(src, COMSIG_ASSEMBLY_DETACHED, holder)
 	holder = null
 	return TRUE
 
@@ -150,16 +154,6 @@
 /obj/item/assembly/examine(mob/user)
 	. = ..()
 	. += span_notice("\The [src] [secured? "is secured and ready to be used!" : "can be attached to other things."]")
-
-/obj/item/assembly/attack_self(mob/user)
-	if(!user)
-		return FALSE
-	user.set_machine(src)
-	interact(user)
-	return TRUE
-
-/obj/item/assembly/interact(mob/user)
-	return ui_interact(user)
 
 /obj/item/assembly/ui_host(mob/user)
 	// In order, return:

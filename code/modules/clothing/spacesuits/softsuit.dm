@@ -16,13 +16,14 @@
 	name = "Engineering Void Helmet"
 	desc = "A CentCom engineering dark red space suit helmet. While old and dusty, it still gets the job done."
 	icon_state = "void"
+	slowdown = 2
 
 /obj/item/clothing/suit/space/nasavoid/old
 	name = "Engineering Voidsuit"
 	icon_state = "void"
 	inhand_icon_state = "void_suit"
 	desc = "A CentCom engineering dark red space suit. Age has degraded the suit making it difficult to move around in."
-	slowdown = 4
+	slowdown = 2
 	allowed = list(/obj/item/flashlight, /obj/item/tank/internals, /obj/item/multitool)
 
 	//EVA suit
@@ -72,6 +73,7 @@
 	inhand_icon_state = "syndicate-helm-orange" //resprite?
 	armor_type = /datum/armor/space_fragile
 	strip_delay = 65
+	slowdown = 1
 
 /obj/item/clothing/suit/space/fragile
 	name = "emergency space suit"
@@ -79,19 +81,19 @@
 	var/torn = FALSE
 	icon_state = "syndicate-orange"
 	inhand_icon_state = "syndicate-orange"
-	slowdown = 2
+	slowdown = 1
 	armor_type = /datum/armor/space_fragile
 	strip_delay = 65
 
 /datum/armor/space_fragile
 	melee = 5
 
-/obj/item/clothing/suit/space/fragile/hit_reaction(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK)
+/obj/item/clothing/suit/space/fragile/hit_reaction(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK, damage_type = BRUTE)
 	if(!torn && prob(50))
 		to_chat(owner, span_warning("[src] tears from the damage, breaking the air-tight seal!"))
 		clothing_flags &= ~STOPSPRESSUREDAMAGE
 		name = "torn [src]."
 		desc = "A bulky suit meant to protect the user during emergency situations, at least until someone tore a hole in the suit."
 		torn = TRUE
-		playsound(loc, 'sound/weapons/slashmiss.ogg', 50, TRUE)
+		playsound(loc, 'sound/items/weapons/slashmiss.ogg', 50, TRUE)
 		playsound(loc, 'sound/effects/refill.ogg', 50, TRUE)

@@ -7,7 +7,7 @@
 	force = 2
 	throwforce = 5
 	w_class = WEIGHT_CLASS_TINY
-	custom_materials = list(/datum/material/glass=100)
+	custom_materials = list(/datum/material/glass=SMALL_MATERIAL_AMOUNT)
 	grind_results = list(/datum/reagent/silicon = 5, /datum/reagent/nitrogen = 10) //Nitrogen is used as a cheaper alternative to argon in incandescent lighbulbs
 	///How much light it gives off
 	var/brightness = 2
@@ -20,7 +20,26 @@
 
 /obj/item/light/Initialize(mapload)
 	. = ..()
-	AddElement(/datum/element/update_icon_updates_onmob, ITEM_SLOT_HANDS)
+	create_reagents(LIGHT_REAGENT_CAPACITY, INJECTABLE | DRAINABLE | SEALED_CONTAINER | TRANSPARENT)
+	AddComponent(/datum/component/caltrop, min_damage = force)
+	update_icon_state()
+	var/static/list/loc_connections = list(
+		COMSIG_ATOM_ENTERED = PROC_REF(on_entered),
+	)
+	AddElement(/datum/element/connect_loc, loc_connections)
+	AddElement(/datum/element/update_icon_updates_onmob)
+	AddComponent(/datum/component/golem_food, golem_food_key = /obj/item/light, extra_validation = CALLBACK(src, PROC_REF(is_intact)))
+
+/obj/item/light/attackby(obj/item/attacking_item, mob/user, params)
+	. = ..()
+
+	if(istype(attacking_item, /obj/item/lightreplacer))
+		var/obj/item/lightreplacer/lightreplacer = attacking_item
+		lightreplacer.attackby(src, user)
+
+/// Returns true if bulb is intact
+/obj/item/light/proc/is_intact()
+	return status == LIGHT_OK
 
 /obj/item/light/suicide_act(mob/living/carbon/user)
 	if (status == LIGHT_BROKEN)
@@ -36,6 +55,7 @@
 	icon_state = "ltube"
 	base_state = "ltube"
 	inhand_icon_state = "ltube"
+	icon_angle = -45
 	brightness = 8
 	custom_price = PAYCHECK_CREW * 0.5
 
@@ -56,6 +76,7 @@
 	desc = "A replacement light bulb."
 	icon_state = "lbulb"
 	base_state = "lbulb"
+	icon_angle = -90
 	inhand_icon_state = "contvapour"
 	lefthand_file = 'icons/mob/inhands/equipment/medical_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/equipment/medical_righthand.dmi'
@@ -92,22 +113,12 @@
 		if(LIGHT_BROKEN)
 			desc = "A broken [name]."
 
-/obj/item/light/Initialize(mapload)
-	. = ..()
-	create_reagents(LIGHT_REAGENT_CAPACITY, INJECTABLE | DRAINABLE | SEALED_CONTAINER | TRANSPARENT)
-	AddComponent(/datum/component/caltrop, min_damage = force)
-	update_icon_state()
-	var/static/list/loc_connections = list(
-		COMSIG_ATOM_ENTERED = PROC_REF(on_entered),
-	)
-	AddElement(/datum/element/connect_loc, loc_connections)
-
 /obj/item/light/proc/on_entered(datum/source, atom/movable/moving_atom)
 	SIGNAL_HANDLER
 	if(!isliving(moving_atom))
 		return
 	var/mob/living/moving_mob = moving_atom
-	if(!(moving_mob.movement_type & (FLYING|FLOATING)) || moving_mob.buckled)
+	if(!(moving_mob.movement_type & MOVETYPES_NOT_TOUCHING_GROUND) || moving_mob.buckled)
 		playsound(src, 'sound/effects/footstep/glass_step.ogg', HAS_TRAIT(moving_mob, TRAIT_LIGHT_STEP) ? 30 : 50, TRUE)
 		if(status == LIGHT_BURNED || status == LIGHT_OK)
 			shatter(moving_mob)
@@ -126,7 +137,7 @@
 		status = LIGHT_BROKEN
 		force = 5
 		sharpness = SHARP_POINTY
-		playsound(loc, 'sound/effects/glasshit.ogg', 75, TRUE)
+		playsound(loc, 'sound/effects/glass/glasshit.ogg', 75, TRUE)
 		if(length(reagents.reagent_list))
 			visible_message(span_danger("The contents of [src] splash onto you as you step on it!"),span_hear("You feel the contents of [src] splash onto you as you step on it!."))
 			reagents.expose(target, TOUCH)

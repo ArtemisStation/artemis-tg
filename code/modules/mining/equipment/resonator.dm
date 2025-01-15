@@ -11,6 +11,7 @@
 	w_class = WEIGHT_CLASS_NORMAL
 	force = 15
 	throwforce = 10
+	slot_flags = ITEM_SLOT_BELT
 
 	/// the mode of the resonator; has three modes: auto (1), manual (2), and matrix (3)
 	var/mode = RESONATOR_MODE_AUTO
@@ -60,7 +61,7 @@
 	/// the modifier to resonance_damage; affected by the quick_burst_mod from the resonator
 	var/damage_multiplier = 1
 	/// the parent creator (user) of this field
-	var/creator
+	var/mob/creator
 	/// the parent resonator of this field
 	var/obj/item/resonator/parent_resonator
 	/// whether the field is rupturing currently or not (to prevent recursion)
@@ -87,7 +88,7 @@
 	if(parent_resonator)
 		parent_resonator.fields += src
 	adding_failure = set_failure
-	playsound(src,'sound/weapons/resonator_fire.ogg',50,TRUE)
+	playsound(src,'sound/items/weapons/resonator_fire.ogg',50,TRUE)
 	if(mode == RESONATOR_MODE_AUTO)
 		transform = matrix()*0.75
 		animate(src, transform = matrix()*1.5, time = duration)
@@ -123,10 +124,11 @@
 		var/turf/closed/mineral/mineral_turf = src_turf
 		mineral_turf.gets_drilled(creator)
 	check_pressure(src_turf)
-	playsound(src_turf, 'sound/weapons/resonator_blast.ogg', 50, TRUE)
+	playsound(src_turf, 'sound/items/weapons/resonator_blast.ogg', 50, TRUE)
 	for(var/mob/living/attacked_living in src_turf)
 		if(creator)
 			log_combat(creator, attacked_living, "used a resonator field on", "resonator")
+			SEND_SIGNAL(creator, COMSIG_LIVING_RESONATOR_BURST, creator, attacked_living)
 		to_chat(attacked_living, span_userdanger("[src] ruptured with you in it!"))
 		attacked_living.apply_damage(resonance_damage, BRUTE)
 		attacked_living.add_movespeed_modifier(/datum/movespeed_modifier/resonance)

@@ -14,28 +14,39 @@
 	var/turf/last_secured_location
 	/// The last world time the parent moved.
 	var/last_move
+	/// Living population must be above this amount for security checks to apply.
+	var/min_pop_limit
 
-/datum/component/keep_me_secure/Initialize(secured_callback, unsecured_callback)
+/datum/component/keep_me_secure/Initialize(secured_callback, unsecured_callback, min_pop_limit)
 	if(!isitem(parent))
 		return COMPONENT_INCOMPATIBLE
 
 	src.secured_callback = secured_callback
 	src.unsecured_callback = unsecured_callback
+	src.min_pop_limit = min_pop_limit
+
+/datum/component/keep_me_secure/Destroy(force)
+	secured_callback = null
+	unsecured_callback = null
+	return ..()
 
 /datum/component/keep_me_secure/RegisterWithParent()
 	last_move = world.time
 	if (secured_callback || unsecured_callback)
 		START_PROCESSING(SSobj, src)
-	RegisterSignal(parent, COMSIG_PARENT_EXAMINE, PROC_REF(on_examine))
-	RegisterSignal(parent, COMSIG_PARENT_EXAMINE_MORE, PROC_REF(on_examine_more))
+	RegisterSignal(parent, COMSIG_ATOM_EXAMINE, PROC_REF(on_examine))
+	RegisterSignal(parent, COMSIG_ATOM_EXAMINE_MORE, PROC_REF(on_examine_more))
 
 
 /datum/component/keep_me_secure/UnregisterFromParent()
 	STOP_PROCESSING(SSobj, src)
-	UnregisterSignal(parent, COMSIG_PARENT_EXAMINE)
+	UnregisterSignal(parent, COMSIG_ATOM_EXAMINE)
 
 /// Returns whether the game is supposed to consider the parent "secure".
 /datum/component/keep_me_secure/proc/is_secured()
+	if(living_player_count() < src.min_pop_limit)
+		return TRUE
+
 	var/obj/item/item_parent = parent
 	if (last_secured_location == get_turf(item_parent))
 		return FALSE

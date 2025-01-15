@@ -14,7 +14,7 @@
 	var/votable = FALSE
 
 	// Config actually from the JSON - should default to Meta
-	var/map_name = "Meta Station"
+	var/map_name = "MetaStation"
 	var/map_path = "map_files/MetaStation"
 	var/map_file = "MetaStation.dmm"
 
@@ -40,6 +40,14 @@
 	var/job_changes = list()
 	/// List of additional areas that count as a part of the library
 	var/library_areas = list()
+	/// Boolean - if TRUE, the "Up" and "Down" traits are automatically distributed to the map's z-levels. If FALSE; they're set via JSON.
+	var/height_autosetup = TRUE
+
+	/// List of unit tests that are skipped when running this map
+	var/list/skipped_tests
+
+	/// Boolean that tells SSmapping to load all away missions in the codebase.
+	var/load_all_away_missions = FALSE
 
 /**
  * Proc that simply loads the default map config, which should always be functional.
@@ -180,6 +188,9 @@
 	if ("blacklist_file" in json)
 		blacklist_file = json["blacklist_file"]
 
+	if ("load_all_away_missions" in json)
+		load_all_away_missions = json["load_all_away_missions"]
+
 	allow_custom_shuttles = json["allow_custom_shuttles"] != FALSE
 
 	if ("job_changes" in json)
@@ -199,8 +210,21 @@
 				continue
 			library_areas += path
 
+	if ("height_autosetup" in json)
+		height_autosetup = json["height_autosetup"]
+
+#ifdef UNIT_TESTS
+	// Check for unit tests to skip, no reason to check these if we're not running tests
+	for(var/path_as_text in json["ignored_unit_tests"])
+		var/path_real = text2path(path_as_text)
+		if(!ispath(path_real, /datum/unit_test))
+			stack_trace("Invalid path in mapping config for ignored unit tests: \[[path_as_text]\]")
+			continue
+		LAZYADD(skipped_tests, path_real)
+#endif
+
 	defaulted = FALSE
-	return TRUE
+	return json
 #undef CHECK_EXISTS
 
 /datum/map_config/proc/GetFullMapPaths()

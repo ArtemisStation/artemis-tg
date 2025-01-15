@@ -11,8 +11,9 @@
 	min_cold_protection_temperature = FIRE_SUIT_MIN_TEMP_PROTECT
 	allowed = list()
 	armor_type = /datum/armor/hooded_wintercoat
-	/// The mutable_appearance of the associated hood, when it's down. Can be null when the hood is up.
-	var/mutable_appearance/hood_overlay
+	hood_down_overlay_suffix = "_hood"
+	/// How snug are we?
+	var/zipped = FALSE
 
 /datum/armor/hooded_wintercoat
 	bio = 10
@@ -31,8 +32,14 @@
 		/obj/item/toy,
 	)
 
-	generate_hood_overlay()
+/obj/item/clothing/suit/hooded/wintercoat/on_hood_up(obj/item/clothing/head/hooded/hood)
+	. = ..()
+	zipped = TRUE
 
+/// Called when the hood is hidden
+/obj/item/clothing/suit/hooded/wintercoat/on_hood_down(obj/item/clothing/head/hooded/hood)
+	. = ..()
+	zipped = FALSE
 
 /obj/item/clothing/suit/hooded/wintercoat/examine(mob/user)
 	. = ..()
@@ -40,32 +47,16 @@
 	. += span_notice("<b>Alt-click</b> to [zipped ? "un" : ""]zip.")
 
 
-/obj/item/clothing/suit/hooded/wintercoat/AltClick(mob/user)
-	. = ..()
-
-	if (. == FALSE) // Direct check for FALSE, because that's the specific case we want to propagate, not just null.
-		return FALSE
-
+/obj/item/clothing/suit/hooded/wintercoat/click_alt(mob/user)
 	zipped = !zipped
+	playsound(src, 'sound/items/zip/zip_up.ogg', 30, TRUE, -3)
 	worn_icon_state = "[initial(icon_state)][zipped ? "_t" : ""]"
 	balloon_alert(user, "[zipped ? "" : "un"]zipped")
 
 	if(ishuman(loc))
 		var/mob/living/carbon/human/wearer = loc
 		wearer.update_worn_oversuit()
-
-
-/// Helper proc to generate the `hood_overlay` associated to the wintercoat.
-/obj/item/clothing/suit/hooded/wintercoat/proc/generate_hood_overlay()
-	hood_overlay = mutable_appearance(initial(worn_icon), "[initial(icon_state)]_hood", -SUIT_LAYER)
-
-
-/obj/item/clothing/suit/hooded/wintercoat/worn_overlays(mutable_appearance/standing, isinhands)
-	. = ..()
-
-	if(!isinhands && !hood_up)
-		. += hood_overlay
-
+	return CLICK_ACTION_SUCCESS
 
 /obj/item/clothing/head/hooded/winterhood
 	name = "winter hood"
@@ -76,7 +67,8 @@
 	body_parts_covered = HEAD
 	cold_protection = HEAD
 	min_cold_protection_temperature = FIRE_SUIT_MIN_TEMP_PROTECT
-	flags_inv = HIDEHAIR|HIDEEARS
+	flags_inv = HIDEEARS
+	hair_mask = HAIR_MASK_HIDE_WINTERHOOD
 	armor_type = /datum/armor/hooded_winterhood
 
 // An coat intended for use for general crew EVA, with values close to those of the space suits found in EVA normally
@@ -87,6 +79,7 @@
 /obj/item/clothing/suit/hooded/wintercoat/eva
 	name = "\proper Endotherm winter coat"
 	desc = "A thickly padded winter coat to keep the wearer well insulated no matter the circumstances. It has a harness for a larger oxygen tank attached to the back."
+	icon_state = "coateva"
 	w_class = WEIGHT_CLASS_BULKY
 	slowdown = 0.75
 	armor_type = /datum/armor/wintercoat_eva
@@ -94,7 +87,6 @@
 	equip_delay_other = 6 SECONDS
 	min_cold_protection_temperature = SPACE_SUIT_MIN_TEMP_PROTECT // Protects very cold.
 	max_heat_protection_temperature = SPACE_SUIT_MAX_TEMP_PROTECT // Protects a little hot.
-	flags_inv = HIDEJUMPSUIT
 	clothing_flags = THICKMATERIAL
 	resistance_flags = NONE
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/eva
@@ -114,6 +106,7 @@
 /obj/item/clothing/head/hooded/winterhood/eva
 	name = "\proper Endotherm winter hood"
 	desc = "A thickly padded hood attached to an even thicker coat."
+	icon_state = "hood_eva"
 	armor_type = /datum/armor/winterhood_eva
 	min_cold_protection_temperature = SPACE_HELM_MIN_TEMP_PROTECT
 	max_heat_protection_temperature = SPACE_HELM_MAX_TEMP_PROTECT
@@ -209,6 +202,7 @@
 	armor_type = /datum/armor/wintercoat_hop
 	allowed = list(
 		/obj/item/melee/baton/telescopic,
+		/obj/item/stamp,
 	)
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/hop
 
@@ -229,16 +223,7 @@
 	desc = "A green and blue winter coat. The zipper tab looks like the flower from a member of Rosa Hesperrhodos, a pretty pink-and-white rose. The colours absolutely clash."
 	icon_state = "coathydro"
 	inhand_icon_state = "coathydro"
-	allowed = list(
-		/obj/item/cultivator,
-		/obj/item/hatchet,
-		/obj/item/plant_analyzer,
-		/obj/item/reagent_containers/spray/plantbgone,
-		/obj/item/reagent_containers/cup/bottle,
-		/obj/item/reagent_containers/spray/pestspray,
-		/obj/item/seeds,
-		/obj/item/storage/bag/plants,
-	)
+	allowed = /obj/item/clothing/suit/apron::allowed
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/hydro
 
 /obj/item/clothing/head/hooded/winterhood/hydro
@@ -252,10 +237,13 @@
 	icon_state = "coatjanitor"
 	inhand_icon_state = null
 	allowed = list(
+		/obj/item/access_key,
 		/obj/item/grenade/chem_grenade,
 		/obj/item/holosign_creator,
+		/obj/item/key/janitor,
 		/obj/item/reagent_containers/cup/beaker,
 		/obj/item/reagent_containers/cup/bottle,
+		/obj/item/reagent_containers/cup/tube,
 		/obj/item/reagent_containers/spray,
 	)
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/janitor
@@ -311,6 +299,7 @@
 		/obj/item/reagent_containers/dropper,
 		/obj/item/reagent_containers/cup/beaker,
 		/obj/item/reagent_containers/cup/bottle,
+		/obj/item/reagent_containers/cup/tube,
 		/obj/item/reagent_containers/hypospray,
 		/obj/item/reagent_containers/pill,
 		/obj/item/reagent_containers/syringe,
@@ -330,12 +319,12 @@
 	icon_state = "hood_medical"
 	armor_type = /datum/armor/winterhood_medical
 
-// Chief Medical Officer
 /datum/armor/winterhood_medical
 	bio = 40
 	fire = 10
 	acid = 20
 
+// Chief Medical Officer
 /obj/item/clothing/suit/hooded/wintercoat/medical/cmo
 	name = "chief medical officer's winter coat"
 	desc = "A winter coat in a vibrant shade of blue with a small silver caduceus instead of a plastic zipper tab. The normal liner is replaced with an exceptionally thick, soft layer of fur."
@@ -375,6 +364,28 @@
 /obj/item/clothing/head/hooded/winterhood/medical/chemistry
 	desc = "A white winter coat hood."
 	icon_state = "hood_chemistry"
+
+// Coroner
+/obj/item/clothing/suit/hooded/wintercoat/medical/coroner
+	name = "coroner winter coat"
+	desc = "A winter coat made with acid resistant polymers, used when the cold dead bodies are too much."
+	icon_state = "coatcoroner"
+	inhand_icon_state = null
+	hoodtype = /obj/item/clothing/head/hooded/winterhood/medical/coroner
+
+/obj/item/clothing/suit/hooded/wintercoat/medical/coroner/Initialize(mapload)
+	. = ..()
+	allowed += list(
+		/obj/item/autopsy_scanner,
+		/obj/item/scythe,
+		/obj/item/shovel,
+		/obj/item/shovel/serrated,
+		/obj/item/trench_tool,
+	)
+
+/obj/item/clothing/head/hooded/winterhood/medical/coroner
+	desc = "A white winter coat hood."
+	icon_state = "hood_coroner"
 
 // Virologist
 /obj/item/clothing/suit/hooded/wintercoat/medical/viro
@@ -417,6 +428,7 @@
 		/obj/item/reagent_containers/dropper,
 		/obj/item/reagent_containers/cup/beaker,
 		/obj/item/reagent_containers/cup/bottle,
+		/obj/item/reagent_containers/cup/tube,
 		/obj/item/reagent_containers/hypospray,
 		/obj/item/reagent_containers/pill,
 		/obj/item/reagent_containers/syringe,
@@ -484,6 +496,10 @@
 	inhand_icon_state = null
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/science/genetics
 
+/obj/item/clothing/suit/hooded/wintercoat/science/genetics/Initialize(mapload)
+	. = ..()
+	allowed += /obj/item/sequence_scanner
+
 /obj/item/clothing/head/hooded/winterhood/science/genetics
 	desc = "A white winter coat hood. It's warm."
 	icon_state = "hood_genetics"
@@ -501,10 +517,13 @@
 		/obj/item/pipe_dispenser,
 		/obj/item/storage/bag/construction,
 		/obj/item/t_scanner,
+		/obj/item/construction/rld,
+		/obj/item/construction/rtd,
+		/obj/item/gun/ballistic/rifle/rebarxbow,
+		/obj/item/storage/bag/rebar_quiver,
 	)
 	armor_type = /datum/armor/wintercoat_engineering
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/engineering
-	species_exception = list(/datum/species/golem/uranium)
 
 /datum/armor/wintercoat_engineering
 	fire = 20
@@ -570,7 +589,11 @@
 	icon_state = "coatcargo"
 	inhand_icon_state = "coatcargo"
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/cargo
-	allowed = list(/obj/item/storage/bag/mail)
+	allowed = list(
+		/obj/item/storage/bag/mail,
+		/obj/item/stamp,
+		/obj/item/universal_scanner,
+	)
 
 /obj/item/clothing/head/hooded/winterhood/cargo
 	desc = "A grey hood for a winter coat."
@@ -608,6 +631,8 @@
 		/obj/item/storage/bag/ore,
 		/obj/item/t_scanner/adv_mining_scanner,
 		/obj/item/tank/internals,
+		/obj/item/shovel,
+		/obj/item/trench_tool,
 	)
 	armor_type = /datum/armor/wintercoat_miner
 	hoodtype = /obj/item/clothing/head/hooded/winterhood/miner
@@ -626,6 +651,7 @@
 /obj/item/clothing/suit/hooded/wintercoat/custom
 	name = "tailored winter coat"
 	desc = "A heavy jacket made from 'synthetic' animal furs, with custom colors."
+	hood_down_overlay_suffix = ""
 	greyscale_colors = "#ffffff#ffffff#808080#808080#808080#808080"
 	greyscale_config = /datum/greyscale_config/winter_coats
 	greyscale_config_worn = /datum/greyscale_config/winter_coats/worn
@@ -635,13 +661,15 @@
 //In case colors are changed after initialization
 /obj/item/clothing/suit/hooded/wintercoat/custom/set_greyscale(list/colors, new_config, new_worn_config, new_inhand_left, new_inhand_right)
 	. = ..()
-	if(hood)
-		var/list/coat_colors = SSgreyscale.ParseColorString(greyscale_colors)
-		var/list/new_coat_colors = coat_colors.Copy(1,4)
-		hood.set_greyscale(new_coat_colors) //Adopt the suit's grayscale coloring for visual clarity.
+	if(!hood)
+		return
+	var/list/coat_colors = SSgreyscale.ParseColorString(greyscale_colors)
+	var/list/new_coat_colors = coat_colors.Copy(1,4)
+	hood.set_greyscale(new_coat_colors) //Adopt the suit's grayscale coloring for visual clarity.
+	hood.update_slot_icon()
 
 //But also keep old method in case the hood is (re-)created later
-/obj/item/clothing/suit/hooded/wintercoat/custom/MakeHood()
+/obj/item/clothing/suit/hooded/wintercoat/custom/on_hood_created(obj/item/clothing/head/hooded/hood)
 	. = ..()
 	var/list/coat_colors = (SSgreyscale.ParseColorString(greyscale_colors))
 	var/list/new_coat_colors = coat_colors.Copy(1,4)

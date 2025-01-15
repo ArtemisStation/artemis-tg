@@ -1,6 +1,6 @@
 /datum/traitor_objective/destroy_item
 	name = "Steal %ITEM% and destroy it"
-	description = "Find %ITEM% and destroy it using any means necessary. We can't allow the crew to have %ITEM% as it conflicts with our interests."
+	description = "Find %ITEM% and destroy it using any means necessary. We can't allow the crew to have %ITEM% as it conflicts with our interests. %METHOD%"
 
 	var/list/possible_items = list()
 	/// The current target item that we are stealing.
@@ -29,9 +29,29 @@
 	progression_minimum = 40 MINUTES
 	progression_reward = 15 MINUTES
 	telecrystal_reward = list(6, 9)
-
 	possible_items = list(
 		/datum/objective_item/steal/blackbox,
+	)
+
+/// Super early-game destroy objective intended to be items easily tided that the crew tends to value.
+/datum/traitor_objective/destroy_item/demoralise
+	description = "Find %ITEM% and destroy it using any means necessary. \
+		We believe this luxury item is important for crew morale. \
+		Destruction of this item will help our recruitment efforts."
+
+	progression_minimum = 0 MINUTES
+	progression_maximum = 10 MINUTES
+	progression_reward = list(4 MINUTES, 8 MINUTES)
+	telecrystal_reward = list(0, 1)
+
+	possible_items = list(
+		/datum/objective_item/steal/traitor/rpd,
+		/datum/objective_item/steal/traitor/space_law,
+		/datum/objective_item/steal/traitor/granted_stamp,
+		/datum/objective_item/steal/traitor/denied_stamp,
+		/datum/objective_item/steal/traitor/lizard_plush,
+		/datum/objective_item/steal/traitor/moth_plush,
+		/datum/objective_item/steal/traitor/insuls,
 	)
 
 /datum/traitor_objective/destroy_item/generate_objective(datum/mind/generating_for, list/possible_duplicates)
@@ -50,11 +70,15 @@
 	if(target_item.exists_on_map)
 		var/list/items = GLOB.steal_item_handler.objectives_by_path[target_item.targetitem]
 		for(var/obj/item/item as anything in items)
-			AddComponent(/datum/component/traitor_objective_register, item, succeed_signals = list(COMSIG_PARENT_QDELETING))
+			AddComponent(/datum/component/traitor_objective_register, item, succeed_signals = list(COMSIG_QDELETING))
 			tracked_items += item
 	if(length(target_item.special_equipment))
 		special_equipment = target_item.special_equipment
 	replace_in_name("%ITEM%", target_item.name)
+	if(target_item.destruction_method != null)
+		replace_in_name("%METHOD%", target_item.destruction_method)
+	else
+		replace_in_name("%METHOD%", "This item can be destroyed normally, such as by using a recycler, found in disposals.")
 	AddComponent(/datum/component/traitor_objective_mind_tracker, generating_for, \
 		signals = list(COMSIG_MOB_EQUIPPED_ITEM = PROC_REF(on_item_pickup)))
 	return TRUE
@@ -80,7 +104,7 @@
 /datum/traitor_objective/destroy_item/proc/on_item_pickup(datum/source, obj/item/item, slot)
 	SIGNAL_HANDLER
 	if(istype(item, target_item.targetitem) && !(item in tracked_items))
-		AddComponent(/datum/component/traitor_objective_register, item, succeed_signals = list(COMSIG_PARENT_QDELETING))
+		AddComponent(/datum/component/traitor_objective_register, item, succeed_signals = list(COMSIG_QDELETING))
 		tracked_items += item
 
 /datum/traitor_objective/destroy_item/ungenerate_objective()

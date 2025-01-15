@@ -49,9 +49,7 @@
 "cZ" = (
 /obj/effect/turf_decal/sand/plating,
 /obj/effect/mapping_helpers/broken_floor,
-/obj/structure/closet/crate{
-	icon_state = "crateopen"
-	},
+/obj/structure/closet/crate/preopen,
 /obj/effect/spawner/random/maintenance/two,
 /turf/open/floor/plating/airless,
 /area/station/maintenance/department/crew_quarters/dorms)
@@ -323,7 +321,7 @@
 /obj/structure/closet/crate,
 /obj/item/wallframe/apc,
 /obj/item/electronics/apc,
-/obj/item/stock_parts/cell/empty,
+/obj/item/stock_parts/power_store/cell/empty,
 /obj/item/stack/cable_coil/five,
 /obj/item/wallframe/apc,
 /obj/item/electronics/apc,
@@ -683,7 +681,7 @@
 "FX" = (
 /obj/effect/decal/cleanable/dirt,
 /obj/structure/grille,
-/obj/structure/window/spawner,
+/obj/structure/window/spawner/directional/south,
 /turf/open/floor/plating,
 /area/station/maintenance/central/lesser)
 "Go" = (
@@ -2909,7 +2907,7 @@ gs
 IK
 IK
 IK
-pD
+mg
 "}
 (53,1,1) = {"
 AN
@@ -2945,7 +2943,7 @@ IK
 IK
 IK
 IK
-pD
+mg
 "}
 (54,1,1) = {"
 AN
@@ -2978,10 +2976,10 @@ gs
 IK
 IK
 IK
-pD
-pD
-pD
-pD
+mg
+mg
+mg
+mg
 "}
 (55,1,1) = {"
 AN
@@ -3014,7 +3012,7 @@ IK
 IK
 IK
 IK
-pD
+mg
 IK
 IK
 IK
@@ -3049,8 +3047,8 @@ cV
 cV
 mg
 sf
-pD
-pD
+mg
+mg
 IK
 IK
 gs

@@ -37,6 +37,10 @@
 #define RADIO_KEY_AI_PRIVATE "o"
 #define RADIO_TOKEN_AI_PRIVATE ":o"
 
+#define RADIO_CHANNEL_ENTERTAINMENT "Entertainment"
+#define RADIO_KEY_ENTERTAINMENT "p"
+#define RADIO_TOKEN_ENTERTAINMENT ":p"
+
 
 #define RADIO_CHANNEL_SYNDICATE "Syndicate"
 #define RADIO_KEY_SYNDICATE "t"
@@ -73,6 +77,7 @@
 #define FREQ_MEDICAL 1355 // Medical comms frequency, soft blue
 #define FREQ_ENGINEERING 1357 // Engineering comms frequency, orange
 #define FREQ_SECURITY 1359 // Security comms frequency, red
+#define FREQ_ENTERTAINMENT 1415 // Used by entertainment monitors, cyan
 
 #define FREQ_HOLOGRID_SOLUTION 1433
 #define FREQ_STATUS_DISPLAYS 1435
@@ -86,6 +91,7 @@
 #define FREQ_ELECTROPACK 1449
 #define FREQ_MAGNETS 1449
 #define FREQ_LOCATOR_IMPLANT 1451
+#define FREQ_RADIO_NAV_BEACON 1455
 #define FREQ_SIGNALER 1457 // the default for new signalers
 #define FREQ_COMMON 1459 // Common comms frequency, dark green
 
@@ -114,6 +120,12 @@
 #define REQ_HIGH_MESSAGE_PRIORITY 2
 #define REQ_EXTREME_MESSAGE_PRIORITY 3
 
+#define ASSISTANCE_REQUEST "Assistance Request"
+#define SUPPLY_REQUEST "Supplies Request"
+#define INFORMATION_REQUEST "Relay Information"
+#define ORE_UPDATE_REQUEST "Ore Update"
+#define REPLY_REQUEST "Reply"
+
 ///give this to can_receive to specify that there is no restriction on what z level this signal is sent to
 #define RADIO_NO_Z_LEVEL_RESTRICTION 0
 
@@ -123,3 +135,10 @@
 #define RADIO_FREQENCY_LOCKED 1
 /// Radio frequency is locked and unchangeable, but can be unlocked by an emag
 #define RADIO_FREQENCY_EMAGGABLE_LOCK 2
+
+///Bitflag for if a headset can use the syndicate radio channel
+#define RADIO_SPECIAL_SYNDIE (1<<0)
+///Bitflag for if a headset can use the centcom radio channel
+#define RADIO_SPECIAL_CENTCOM (1<<1)
+///Bitflag for if a headset can use the binary radio channel
+#define RADIO_SPECIAL_BINARY (1<<2)
